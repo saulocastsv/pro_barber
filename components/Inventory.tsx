@@ -1,15 +1,31 @@
 import React, { useState } from 'react';
 import { MOCK_INVENTORY } from '../constants';
-import { Package, AlertTriangle, Search, Plus, DollarSign, Edit, Trash2, Filter, ShoppingCart, ArrowRight } from 'lucide-react';
+import { Package, AlertTriangle, Search, Plus, DollarSign, Edit, Trash2, Filter, ShoppingCart, ArrowRight, X, Tag, Layers, Hash, Save, Check } from 'lucide-react';
+import { InventoryItem } from '../types';
 
 export const Inventory: React.FC = () => {
+  const [items, setItems] = useState<InventoryItem[]>(MOCK_INVENTORY);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLowStock, setFilterLowStock] = useState(false);
   
-  const totalValue = MOCK_INVENTORY.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-  const lowStockItems = MOCK_INVENTORY.filter(item => item.quantity <= item.minLevel);
+  // Edit State
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<Partial<InventoryItem>>({});
 
-  const filteredItems = MOCK_INVENTORY.filter(item => {
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newItem, setNewItem] = useState<Partial<InventoryItem>>({
+    name: '',
+    category: 'Cabelo',
+    quantity: 0,
+    price: 0,
+    minLevel: 5
+  });
+
+  const totalValue = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+  const lowStockItems = items.filter(item => item.quantity <= item.minLevel);
+
+  const filteredItems = items.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           item.category.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterLowStock ? item.quantity <= item.minLevel : true;
@@ -17,14 +33,65 @@ export const Inventory: React.FC = () => {
     return matchesSearch && matchesFilter;
   });
 
+  const handleAddItem = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newItem.name || !newItem.price) return;
+
+    const item: InventoryItem = {
+      id: `new_${Date.now()}`,
+      name: newItem.name,
+      category: newItem.category || 'Cabelo',
+      quantity: Number(newItem.quantity),
+      price: Number(newItem.price),
+      minLevel: Number(newItem.minLevel)
+    };
+
+    setItems([...items, item]);
+    setIsModalOpen(false);
+    setNewItem({ name: '', category: 'Cabelo', quantity: 0, price: 0, minLevel: 5 });
+    alert("Produto cadastrado com sucesso!");
+  };
+
+  const handleDelete = (id: string) => {
+      if (window.confirm('Tem certeza que deseja excluir este item do estoque?')) {
+          setItems(items.filter(item => item.id !== id));
+      }
+  };
+
+  const startEditing = (item: InventoryItem) => {
+      setEditingId(item.id);
+      setEditValues({ ...item });
+  };
+
+  const cancelEditing = () => {
+      setEditingId(null);
+      setEditValues({});
+  };
+
+  const saveEdit = () => {
+      if (!editingId) return;
+      
+      setItems(items.map(item => {
+          if (item.id === editingId) {
+              return { ...item, ...editValues } as InventoryItem;
+          }
+          return item;
+      }));
+      setEditingId(null);
+      setEditValues({});
+  };
+
   return (
-    <div className="space-y-6 animate-fade-in pb-10">
+    <div className="space-y-6 animate-fade-in pb-10 relative">
       <div className="flex justify-between items-center">
         <div>
             <h2 className="text-3xl font-bold text-slate-800 tracking-tight">Gestão de Estoque</h2>
             <p className="text-slate-500 mt-1">Controle produtos de venda e consumo interno.</p>
         </div>
-        <button className="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/10 flex items-center gap-2">
+        <button 
+            onClick={() => setIsModalOpen(true)}
+            className="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/10 flex items-center gap-2"
+        >
             <Plus size={18} /> Novo Produto
         </button>
       </div>
@@ -37,7 +104,7 @@ export const Inventory: React.FC = () => {
             </div>
             <div>
                 <p className="text-sm font-medium text-slate-500">Total de Itens</p>
-                <h3 className="text-2xl font-bold text-slate-800">{MOCK_INVENTORY.length}</h3>
+                <h3 className="text-2xl font-bold text-slate-800">{items.length}</h3>
             </div>
         </div>
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 group hover:shadow-md transition-all">
@@ -143,49 +210,98 @@ export const Inventory: React.FC = () => {
                         <th className="px-6 py-4">Categoria</th>
                         <th className="px-6 py-4">Quantidade</th>
                         <th className="px-6 py-4">Preço Unit.</th>
-                        <th className="px-6 py-4">Status</th>
+                        <th className="px-6 py-4">
+                            {editingId ? 'Nível Mínimo' : 'Status'}
+                        </th>
                         <th className="px-6 py-4 text-right">Ações</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                     {filteredItems.map(item => (
-                        <tr key={item.id} className="hover:bg-slate-50 transition-colors group">
-                            <td className="px-6 py-4 font-medium text-slate-800">{item.name}</td>
-                            <td className="px-6 py-4 text-slate-500 text-sm">
-                                <span className="bg-slate-100 px-2 py-1 rounded text-xs font-semibold">{item.category}</span>
-                            </td>
-                            <td className="px-6 py-4">
-                                <div className="flex items-center gap-2">
-                                    <span className="font-bold text-slate-700">{item.quantity} un</span>
-                                    {item.quantity <= item.minLevel && (
-                                        <div className="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden hidden sm:block">
-                                            <div className="h-full bg-red-500" style={{ width: `${Math.min((item.quantity / item.minLevel) * 100, 100)}%` }}></div>
+                        <tr key={item.id} className={`hover:bg-slate-50 transition-colors group ${editingId === item.id ? 'bg-blue-50/30' : ''}`}>
+                            {editingId === item.id ? (
+                                <>
+                                    <td className="px-6 py-4 font-medium text-slate-800">{item.name}</td>
+                                    <td className="px-6 py-4 text-sm text-slate-500">{item.category}</td>
+                                    <td className="px-6 py-4">
+                                        <input 
+                                            type="number" 
+                                            className="w-20 p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                            value={editValues.quantity}
+                                            onChange={(e) => setEditValues({...editValues, quantity: Number(e.target.value)})}
+                                        />
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <input 
+                                            type="number" 
+                                            step="0.01"
+                                            className="w-24 p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                            value={editValues.price}
+                                            onChange={(e) => setEditValues({...editValues, price: Number(e.target.value)})}
+                                        />
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs text-slate-500">Mín:</span>
+                                            <input 
+                                                type="number" 
+                                                className="w-20 p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                                value={editValues.minLevel}
+                                                onChange={(e) => setEditValues({...editValues, minLevel: Number(e.target.value)})}
+                                            />
                                         </div>
-                                    )}
-                                </div>
-                            </td>
-                            <td className="px-6 py-4 text-slate-600">R$ {item.price.toFixed(2)}</td>
-                            <td className="px-6 py-4">
-                                {item.quantity <= item.minLevel ? (
-                                    <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-full border border-amber-100">
-                                        <AlertTriangle size={10} /> Repor ({item.quantity}/{item.minLevel})
-                                    </span>
-                                ) : (
-                                    <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
-                                        Em dia
-                                    </span>
-                                )}
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                                <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                                        <Edit size={16} />
-                                    </button>
-                                    <button className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                                        <Trash2 size={16} />
-                                    </button>
-                                </div>
-                            </td>
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="flex items-center justify-end gap-2">
+                                            <button onClick={saveEdit} className="p-2 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors">
+                                                <Check size={18} />
+                                            </button>
+                                            <button onClick={cancelEditing} className="p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-lg transition-colors">
+                                                <X size={18} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </>
+                            ) : (
+                                <>
+                                    <td className="px-6 py-4 font-medium text-slate-800">{item.name}</td>
+                                    <td className="px-6 py-4 text-slate-500 text-sm">
+                                        <span className="bg-slate-100 px-2 py-1 rounded text-xs font-semibold">{item.category}</span>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-slate-700">{item.quantity} un</span>
+                                            {item.quantity <= item.minLevel && (
+                                                <div className="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden hidden sm:block">
+                                                    <div className="h-full bg-red-500" style={{ width: `${Math.min((item.quantity / item.minLevel) * 100, 100)}%` }}></div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-slate-600">R$ {item.price.toFixed(2)}</td>
+                                    <td className="px-6 py-4">
+                                        {item.quantity <= item.minLevel ? (
+                                            <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-full border border-amber-100">
+                                                <AlertTriangle size={10} /> Repor ({item.quantity}/{item.minLevel})
+                                            </span>
+                                        ) : (
+                                            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
+                                                Em dia
+                                            </span>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={() => startEditing(item)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                                                <Edit size={16} />
+                                            </button>
+                                            <button onClick={() => handleDelete(item.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </>
+                            )}
                         </tr>
                     ))}
                     {filteredItems.length === 0 && (
@@ -193,7 +309,7 @@ export const Inventory: React.FC = () => {
                             <td colSpan={6} className="px-6 py-10 text-center text-slate-400">
                                 {filterLowStock 
                                     ? "Tudo certo! Nenhum produto com estoque baixo." 
-                                    : "Nenhum produto encontrado na busca."}
+                                    : "Nenhum produto encontrado."}
                             </td>
                         </tr>
                     )}
@@ -201,6 +317,120 @@ export const Inventory: React.FC = () => {
             </table>
         </div>
       </div>
+
+      {/* Add Item Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fade-in">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-100">
+                <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+                    <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <Package size={20} className="text-blue-500" /> Novo Produto
+                    </h3>
+                    <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-200 p-1 rounded-full transition-colors">
+                        <X size={20} />
+                    </button>
+                </div>
+                <form onSubmit={handleAddItem} className="p-6 space-y-4">
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5 ml-1">Nome do Produto</label>
+                        <div className="relative">
+                            <Tag size={18} className="absolute left-3 top-3 text-slate-400" />
+                            <input 
+                                required
+                                type="text" 
+                                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm text-slate-900 placeholder:text-slate-400"
+                                placeholder="Ex: Pomada Matte 150g"
+                                value={newItem.name}
+                                onChange={e => setNewItem({...newItem, name: e.target.value})}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5 ml-1">Categoria</label>
+                            <div className="relative">
+                                <Layers size={18} className="absolute left-3 top-3 text-slate-400" />
+                                <select 
+                                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm appearance-none text-slate-900"
+                                    value={newItem.category}
+                                    onChange={e => setNewItem({...newItem, category: e.target.value})}
+                                >
+                                    <option value="Cabelo">Cabelo</option>
+                                    <option value="Barba">Barba</option>
+                                    <option value="Acessórios">Acessórios</option>
+                                    <option value="Higiene">Higiene</option>
+                                    <option value="Consumo Interno">Consumo Interno</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5 ml-1">Preço (R$)</label>
+                             <div className="relative">
+                                <DollarSign size={18} className="absolute left-3 top-3 text-slate-400" />
+                                <input 
+                                    required
+                                    type="number" 
+                                    step="0.01"
+                                    min="0"
+                                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm text-slate-900"
+                                    value={newItem.price}
+                                    onChange={e => setNewItem({...newItem, price: Number(e.target.value)})}
+                                />
+                             </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5 ml-1">Quantidade</label>
+                             <div className="relative">
+                                <Hash size={18} className="absolute left-3 top-3 text-slate-400" />
+                                <input 
+                                    required
+                                    type="number" 
+                                    min="0"
+                                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm text-slate-900"
+                                    value={newItem.quantity}
+                                    onChange={e => setNewItem({...newItem, quantity: Number(e.target.value)})}
+                                />
+                             </div>
+                        </div>
+                        <div>
+                             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5 ml-1">Mínimo (Alerta)</label>
+                             <div className="relative">
+                                <AlertTriangle size={18} className="absolute left-3 top-3 text-slate-400" />
+                                <input 
+                                    required
+                                    type="number" 
+                                    min="0"
+                                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm text-slate-900"
+                                    value={newItem.minLevel}
+                                    onChange={e => setNewItem({...newItem, minLevel: Number(e.target.value)})}
+                                />
+                             </div>
+                        </div>
+                    </div>
+
+                    <div className="pt-4 flex gap-3">
+                        <button 
+                            type="button" 
+                            onClick={() => setIsModalOpen(false)} 
+                            className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                        <button 
+                            type="submit" 
+                            className="flex-1 py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 shadow-lg transition-all"
+                        >
+                            Salvar Produto
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+      )}
     </div>
   );
 };

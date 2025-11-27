@@ -14,12 +14,12 @@ interface BookingFlowProps {
 // Toast Component Local
 const Toast: React.FC<{ message: string; type: 'success' | 'error'; onClose: () => void }> = ({ message, type, onClose }) => {
     return (
-        <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-2xl animate-fade-in border ${
-            type === 'success' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-white border-red-100 text-red-600'
+        <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-2xl animate-fade-in border transition-all duration-300 ${
+            type === 'success' ? 'bg-emerald-600 border-emerald-500 text-white shadow-emerald-900/20' : 'bg-white border-red-100 text-red-600 shadow-red-900/10'
         }`}>
             {type === 'success' ? <Check size={20} className="text-white" /> : <AlertCircle size={20} />}
-            <span className="font-medium">{message}</span>
-            <button onClick={onClose} className="ml-2 opacity-70 hover:opacity-100"><span className="sr-only">Fechar</span>×</button>
+            <span className="font-medium text-sm md:text-base">{message}</span>
+            <button onClick={onClose} className="ml-2 opacity-70 hover:opacity-100 p-1"><span className="sr-only">Fechar</span>×</button>
         </div>
     );
 };
@@ -59,7 +59,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ currentUser, initialDa
 
   const showToast = (message: string, type: 'success' | 'error') => {
       setToast({ message, type });
-      setTimeout(() => setToast(null), 3000);
+      setTimeout(() => setToast(null), 4000);
   };
 
   const toggleService = (id: string) => {
@@ -126,7 +126,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ currentUser, initialDa
           endDate.setHours(h, m + totalDuration);
           const endTime = endDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-          showToast(`Indisponível! O serviço terminaria às ${endTime} e conflita com outro cliente.`, 'error');
+          showToast(`Horário indisponível! A duração total (${totalDuration} min) ultrapassa o tempo livre e conflita com o próximo cliente.`, 'error');
       }
   };
 
@@ -154,10 +154,10 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ currentUser, initialDa
           setStep(5);
           setIsProcessing(false);
 
-          // Trigger success toast
+          // Trigger success toast AFTER the view transition
           setTimeout(() => {
             showToast('Agendamento realizado com sucesso!', 'success');
-          }, 400);
+          }, 500);
       }, 1500);
   };
 
@@ -240,7 +240,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ currentUser, initialDa
                         <button 
                             onClick={handleNextStep}
                             disabled={selection.serviceIds.length === 0 || isProcessing}
-                            className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold shadow-lg hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all hover:-translate-y-1 min-w-[150px] justify-center"
+                            className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold shadow-lg hover:bg-slate-800 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2 transition-all hover:-translate-y-1 min-w-[150px] justify-center"
                         >
                             {isProcessing ? (
                                 <span className="flex items-center gap-2 animate-pulse text-white/90">
@@ -316,11 +316,11 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ currentUser, initialDa
                             <button
                                 key={time}
                                 onClick={() => handleTimeSelection(time)}
-                                disabled={!available || isProcessing}
+                                disabled={isProcessing} // Allow clicking even if unavailable to show validation toast
                                 className={`
                                 py-4 border rounded-xl font-semibold text-base transition-all duration-200 outline-none relative overflow-hidden
                                 ${!available 
-                                    ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-60 cursor-pointer hover:bg-slate-100' 
+                                    ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-60 hover:bg-slate-100' 
                                     : 'border-slate-200 text-slate-600 bg-white hover:border-slate-900 hover:shadow-lg hover:scale-105 active:scale-95'
                                 }
                                 ${isSelected ? 'bg-slate-900 text-white border-slate-900 shadow-xl' : ''}
@@ -390,7 +390,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ currentUser, initialDa
                                     <input 
                                         type="text" 
                                         placeholder="Seu Nome Completo"
-                                        className="w-full p-3 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                                        className="w-full p-3 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none disabled:opacity-70 disabled:cursor-not-allowed"
                                         value={guestInfo.name}
                                         onChange={e => setGuestInfo({...guestInfo, name: e.target.value})}
                                         disabled={isProcessing}
@@ -398,7 +398,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ currentUser, initialDa
                                     <input 
                                         type="tel" 
                                         placeholder="WhatsApp para contato"
-                                        className="w-full p-3 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                                        className="w-full p-3 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none disabled:opacity-70 disabled:cursor-not-allowed"
                                         value={guestInfo.phone}
                                         onChange={e => setGuestInfo({...guestInfo, phone: e.target.value})}
                                         disabled={isProcessing}
@@ -436,7 +436,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ currentUser, initialDa
                 <button 
                     onClick={confirmBooking}
                     disabled={isProcessing}
-                    className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-wait min-h-[56px]"
+                    className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-wait disabled:shadow-none disabled:translate-y-0 min-h-[56px]"
                 >
                     {isProcessing ? (
                         <span className="flex items-center gap-2 animate-pulse text-white/90">

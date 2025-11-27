@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { MOCK_USERS, MOCK_NOTES, MOCK_APPOINTMENTS, SERVICES } from '../constants';
-import { UserRole, User } from '../types';
-import { Search, Phone, User as UserIcon, Calendar, FileText, Plus, Save, Clock, Scissors, MessageCircle, Filter, ArrowUpDown, History, ChevronLeft } from 'lucide-react';
+import { UserRole } from '../types';
+import { Search, Phone, User as UserIcon, Calendar, FileText, Save, Clock, Scissors, MessageCircle, Filter, History, ChevronLeft } from 'lucide-react';
 
 export const CustomerCRM: React.FC = () => {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
@@ -255,4 +255,49 @@ export const CustomerCRM: React.FC = () => {
                                     return (
                                         <div key={appt.id} className="flex gap-4 relative">
                                             {/* Timeline Line */}
-                                            <div className="absolute top-0 bottom-0 left-[1
+                                            <div className="absolute top-0 bottom-0 left-[19px] w-0.5 bg-slate-100 -z-10"></div>
+                                            
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 z-10 border-4 border-white ${
+                                                appt.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'
+                                            }`}>
+                                                <Scissors size={16} />
+                                            </div>
+                                            
+                                            <div className="bg-white border border-slate-100 rounded-xl p-3 shadow-sm flex-1">
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <p className="font-bold text-slate-800 text-sm">{service?.name}</p>
+                                                        <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                                                            <UserIcon size={10} /> {barber?.name}
+                                                        </p>
+                                                    </div>
+                                                    <span className="text-xs font-bold text-slate-900">R$ {service?.price}</span>
+                                                </div>
+                                                <div className="mt-2 text-[10px] text-slate-400 font-medium bg-slate-50 inline-block px-2 py-1 rounded">
+                                                    {new Date(appt.startTime).toLocaleDateString('pt-BR')} • {new Date(appt.startTime).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                {selectedCustomer.history.length === 0 && (
+                                    <p className="text-sm text-slate-400 italic">Sem histórico de visitas.</p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                <div className="flex flex-col items-center justify-center h-full text-slate-400 p-8 text-center">
+                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                        <UserIcon size={32} className="text-slate-300" />
+                    </div>
+                    <p className="font-medium">Selecione um cliente para ver a ficha completa.</p>
+                    <p className="text-sm mt-1">Clique na lista ao lado para começar.</p>
+                </div>
+            )}
+        </div>
+      </div>
+    </div>
+  );
+};

@@ -1,10 +1,33 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { MOCK_CAMPAIGNS } from '../constants';
-import { Megaphone, Gift, Send, Users, BarChart2, Plus, MessageCircle, Mail } from 'lucide-react';
+import { Campaign } from '../types';
+import { Megaphone, Gift, Send, Users, BarChart2, Plus, MessageCircle, Mail, X } from 'lucide-react';
 
 export const MarketingTools: React.FC = () => {
+  const [campaigns, setCampaigns] = useState<Campaign[]>(MOCK_CAMPAIGNS);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newCampaign, setNewCampaign] = useState({ title: '', content: '', type: 'WHATSAPP' as 'WHATSAPP' | 'EMAIL' });
+
+  const handleCreateCampaign = (e: React.FormEvent) => {
+      e.preventDefault();
+      const campaign: Campaign = {
+          id: `c${Date.now()}`,
+          title: newCampaign.title,
+          content: newCampaign.content,
+          type: newCampaign.type,
+          status: 'SCHEDULED', // Mock status
+          sentCount: 0,
+          date: new Date().toISOString(),
+      };
+      setCampaigns([campaign, ...campaigns]);
+      setIsModalOpen(false);
+      setNewCampaign({ title: '', content: '', type: 'WHATSAPP' });
+      alert('Campanha agendada com sucesso!');
+  };
+
   return (
-    <div className="space-y-8 animate-fade-in pb-10">
+    <div className="space-y-8 animate-fade-in pb-10 relative">
       <div className="flex justify-between items-center">
         <div>
             <h2 className="text-3xl font-bold text-slate-800 tracking-tight">Marketing & Fidelidade</h2>
@@ -83,7 +106,10 @@ export const MarketingTools: React.FC = () => {
                       <div className="p-3 bg-white/10 rounded-xl backdrop-blur-sm">
                           <Megaphone size={24} className="text-white" />
                       </div>
-                      <button className="bg-white text-slate-900 px-4 py-2 rounded-lg font-bold text-sm hover:bg-slate-100 transition-colors flex items-center gap-2">
+                      <button 
+                        onClick={() => setIsModalOpen(true)}
+                        className="bg-white text-slate-900 px-4 py-2 rounded-lg font-bold text-sm hover:bg-slate-100 transition-colors flex items-center gap-2"
+                      >
                           <Plus size={16} /> Criar Campanha
                       </button>
                   </div>
@@ -108,7 +134,7 @@ export const MarketingTools: React.FC = () => {
                       Últimas Campanhas
                   </div>
                   <div className="divide-y divide-slate-100">
-                      {MOCK_CAMPAIGNS.map(campaign => (
+                      {campaigns.map(campaign => (
                           <div key={campaign.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
                               <div className="flex items-center gap-3">
                                   <div className={`p-2 rounded-lg ${campaign.type === 'WHATSAPP' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'}`}>
@@ -137,6 +163,58 @@ export const MarketingTools: React.FC = () => {
                   </div>
               </div>
           </div>
+
+          {/* New Campaign Modal */}
+          {isModalOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+                  <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+                      <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                          <h3 className="text-lg font-bold text-slate-800">Nova Campanha</h3>
+                          <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1">
+                              <X size={20} />
+                          </button>
+                      </div>
+                      <form onSubmit={handleCreateCampaign} className="p-6 space-y-4">
+                          <div>
+                              <label className="block text-sm font-medium text-slate-700 mb-1">Título da Campanha</label>
+                              <input 
+                                required
+                                type="text" 
+                                className="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 placeholder:text-slate-400"
+                                placeholder="Ex: Promoção Relâmpago"
+                                value={newCampaign.title}
+                                onChange={e => setNewCampaign({...newCampaign, title: e.target.value})}
+                              />
+                          </div>
+                          <div>
+                              <label className="block text-sm font-medium text-slate-700 mb-1">Canal de Envio</label>
+                              <select 
+                                className="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-900"
+                                value={newCampaign.type}
+                                onChange={e => setNewCampaign({...newCampaign, type: e.target.value as 'WHATSAPP' | 'EMAIL'})}
+                              >
+                                  <option value="WHATSAPP">WhatsApp</option>
+                                  <option value="EMAIL">E-mail Marketing</option>
+                              </select>
+                          </div>
+                          <div>
+                              <label className="block text-sm font-medium text-slate-700 mb-1">Mensagem</label>
+                              <textarea 
+                                required
+                                rows={4}
+                                className="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 placeholder:text-slate-400 resize-none"
+                                placeholder="Olá {nome}, aproveite 20% off..."
+                                value={newCampaign.content}
+                                onChange={e => setNewCampaign({...newCampaign, content: e.target.value})}
+                              />
+                          </div>
+                          <button type="submit" className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-800 transition-colors shadow-lg mt-2 flex items-center justify-center gap-2">
+                              <Send size={18} /> Agendar Disparo
+                          </button>
+                      </form>
+                  </div>
+              </div>
+          )}
       </div>
     </div>
   );

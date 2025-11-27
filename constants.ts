@@ -1,4 +1,26 @@
-import { User, UserRole, Service, Appointment, QueueItem, Transaction, BarbershopStats, InventoryItem, Campaign, TechnicalNote } from './types';
+
+import { User, UserRole, Service, Appointment, QueueItem, Transaction, BarbershopStats, InventoryItem, Campaign, TechnicalNote, StoreProduct, ShopSettings, Notification } from './types';
+
+// --- REGRAS DE FIDELIDADE ---
+export const LOYALTY_RULES = {
+  POINTS_PER_CURRENCY: 1, // 1 Ponto a cada R$ 1,00 gasto
+  MIN_POINTS_TO_REDEEM: 100, // Mínimo de pontos para poder usar desconto
+  DISCOUNT_CONVERSION_RATE: 10 // 10 pontos = R$ 1,00 de desconto
+};
+
+export const MOCK_SHOP_SETTINGS: ShopSettings = {
+  shopName: 'BarberPro Matriz',
+  address: 'Rua Augusta, 1500 - São Paulo, SP',
+  phone: '(11) 99999-0000',
+  openingHours: { start: '09:00', end: '20:00' },
+  workingDays: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab']
+};
+
+export const MOCK_NOTIFICATIONS: Notification[] = [
+  { id: 'n1', title: 'Novo Agendamento', message: 'Lucas Moura agendou para hoje às 15:00', time: '10 min atrás', read: false, type: 'INFO' },
+  { id: 'n2', title: 'Estoque Baixo', message: 'Shampoo Mentolado atingiu nível mínimo.', time: '1 hora atrás', read: false, type: 'ALERT' },
+  { id: 'n3', title: 'Meta Batida', message: 'Parabéns! Faturamento diário superou a meta.', time: 'Ontem', read: true, type: 'SUCCESS' },
+];
 
 export const MOCK_USERS: User[] = [
   { 
@@ -35,7 +57,8 @@ export const MOCK_USERS: User[] = [
     avatar: 'https://picsum.photos/seed/u4/100/100',
     email: 'cliente@gmail.com',
     password: '123',
-    phone: '(11) 66666-6666'
+    phone: '(11) 66666-6666',
+    points: 450
   },
   { 
     id: 'c1', 
@@ -43,7 +66,8 @@ export const MOCK_USERS: User[] = [
     role: UserRole.CUSTOMER, 
     avatar: 'https://picsum.photos/seed/c1/100/100',
     email: 'roberto@gmail.com',
-    phone: '(11) 91111-1111'
+    phone: '(11) 91111-1111',
+    points: 120
   },
   { 
     id: 'c2', 
@@ -51,7 +75,8 @@ export const MOCK_USERS: User[] = [
     role: UserRole.CUSTOMER, 
     avatar: 'https://picsum.photos/seed/c2/100/100',
     email: 'lucas@gmail.com',
-    phone: '(11) 92222-2222'
+    phone: '(11) 92222-2222',
+    points: 0
   }
 ];
 
@@ -119,11 +144,83 @@ export const MOCK_INVENTORY: InventoryItem[] = [
 ];
 
 export const MOCK_CAMPAIGNS: Campaign[] = [
-  { id: 'c1', title: 'Promoção de Natal', type: 'WHATSAPP', status: 'SENT', sentCount: 150, openRate: 85, date: '2023-12-20' },
-  { id: 'c2', title: 'Volta às Aulas', type: 'EMAIL', status: 'DRAFT', sentCount: 0, date: '2024-01-15' },
+  { id: 'c1', title: 'Promoção de Natal', type: 'WHATSAPP', status: 'SENT', sentCount: 150, openRate: 85, date: '2023-12-20', content: 'HoHoHo! Desconto de 20% em todos os cortes até dia 25!' },
+  { id: 'c2', title: 'Volta às Aulas', type: 'EMAIL', status: 'DRAFT', sentCount: 0, date: '2024-01-15', content: 'Volte com estilo. Agende seu corte.' },
 ];
 
 export const MOCK_NOTES: TechnicalNote[] = [
   { id: 'n1', customerId: 'c1', barberId: 'u2', date: '2023-10-15', note: 'Cliente prefere disfarçado na 0.5 (Mid Fade). Cuidado com sinal na sobrancelha direita.', tags: ['Mid Fade', 'Sobrancelha'] },
   { id: 'n2', customerId: 'c2', barberId: 'u3', date: '2023-10-10', note: 'Barba desenhada com navalha, pele sensível. Usar toalha morna, não quente.', tags: ['Pele Sensível', 'Barba'] },
+];
+
+export const MOCK_STORE_PRODUCTS: StoreProduct[] = [
+  {
+    id: 'sp1',
+    name: 'Pomada Modeladora Matte',
+    description: 'Fixação forte com efeito seco natural. Ideal para penteados clássicos e modernos. Fórmula à base de água, sai fácil no banho.',
+    price: 45.00,
+    category: 'Cabelo',
+    rating: 4.8,
+    reviewsCount: 124,
+    images: [
+      'https://images.unsplash.com/photo-1626285861696-9f0bf5a49c6d?auto=format&fit=crop&q=80&w=600',
+      'https://images.unsplash.com/photo-1599305090598-fe179d501227?auto=format&fit=crop&q=80&w=600'
+    ],
+    variations: ['100g', '50g'],
+    inStock: true
+  },
+  {
+    id: 'sp2',
+    name: 'Óleo para Barba Viking',
+    description: 'Hidratação profunda para barbas longas e ressecadas. Fragrância amadeirada com notas de couro e tabaco. Evita coceira e descamação.',
+    price: 39.90,
+    category: 'Barba',
+    rating: 4.9,
+    reviewsCount: 89,
+    images: [
+      'https://images.unsplash.com/photo-1626285861696-9f0bf5a49c6d?auto=format&fit=crop&q=80&w=600&h=600&fit=crop', 
+      'https://images.unsplash.com/photo-1555431189-0fabf2667795?auto=format&fit=crop&q=80&w=600'
+    ],
+    variations: ['30ml', '60ml'],
+    inStock: true
+  },
+  {
+    id: 'sp3',
+    name: 'Shampoo Anti-Caspa Ice',
+    description: 'Sensação refrescante de mentol. Limpeza profunda que controla a oleosidade e elimina a caspa desde a primeira lavagem.',
+    price: 32.50,
+    category: 'Cabelo',
+    rating: 4.5,
+    reviewsCount: 56,
+    images: [
+      'https://images.unsplash.com/photo-1608248597279-f99d160bfbc8?auto=format&fit=crop&q=80&w=600'
+    ],
+    inStock: true
+  },
+  {
+    id: 'sp4',
+    name: 'Kit Barba Completo',
+    description: 'Tudo o que você precisa: Shampoo de Barba, Balm Modelador, Óleo Hidratante e Pente de Madeira. O presente perfeito.',
+    price: 120.00,
+    category: 'Kits',
+    rating: 5.0,
+    reviewsCount: 32,
+    images: [
+      'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&q=80&w=600'
+    ],
+    inStock: true
+  },
+  {
+    id: 'sp5',
+    name: 'Minoxidil 5% Turbo',
+    description: 'Auxilia no crescimento de falhas na barba e cabelo. Resultados visíveis a partir do segundo mês de uso contínuo.',
+    price: 85.00,
+    category: 'Tratamento',
+    rating: 4.7,
+    reviewsCount: 210,
+    images: [
+        'https://images.unsplash.com/photo-1631729371254-42c2892f0e6e?auto=format&fit=crop&q=80&w=600'
+    ],
+    inStock: false
+  }
 ];

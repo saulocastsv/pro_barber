@@ -1,3 +1,4 @@
+
 export enum UserRole {
   OWNER = 'OWNER',
   BARBER = 'BARBER',
@@ -12,6 +13,7 @@ export interface User {
   email?: string;
   password?: string;
   phone?: string;
+  points?: number; // Added points
 }
 
 export interface Service {
@@ -75,6 +77,7 @@ export interface Campaign {
   sentCount: number;
   openRate?: number;
   date: string;
+  content?: string;
 }
 
 export interface LoyaltyConfig {
@@ -89,4 +92,42 @@ export interface TechnicalNote {
   date: string;
   note: string;
   tags: string[];
+}
+
+// Loja Virtual
+export interface StoreProduct {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  category: string;
+  images: string[];
+  rating: number;
+  reviewsCount: number;
+  variations?: string[]; // e.g. "100ml", "200ml", "Matte", "Brilho"
+  inStock: boolean;
+}
+
+export interface CartItem extends StoreProduct {
+  cartId: string;
+  selectedVariation?: string;
+  quantity: number;
+}
+
+// Configurações e Notificações
+export interface ShopSettings {
+  shopName: string;
+  address: string;
+  phone: string;
+  openingHours: { start: string; end: string };
+  workingDays: string[];
+}
+
+export interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  time: string;
+  read: boolean;
+  type: 'INFO' | 'ALERT' | 'SUCCESS';
 }

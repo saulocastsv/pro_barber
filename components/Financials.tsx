@@ -1,17 +1,46 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { MOCK_TRANSACTIONS } from '../constants';
-import { DollarSign, TrendingDown, TrendingUp, Wallet, Download } from 'lucide-react';
+import { DollarSign, TrendingDown, TrendingUp, Wallet, Download, Loader2 } from 'lucide-react';
 
 export const Financials: React.FC = () => {
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [displayedTransactions, setDisplayedTransactions] = useState(MOCK_TRANSACTIONS.slice(0, 5));
+
+  const handleExportCSV = () => {
+      const headers = ['ID', 'Data', 'Descricao', 'Tipo', 'Valor', 'Barbeiro'];
+      const rows = MOCK_TRANSACTIONS.map(t => [t.id, t.date, t.description, t.type, t.amount.toString(), t.barberId || '-']);
+      
+      let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `financeiro_barberpro_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+  };
+
+  const handleLoadMore = () => {
+      setLoadingMore(true);
+      setTimeout(() => {
+          setDisplayedTransactions(MOCK_TRANSACTIONS); // Load all mock
+          setLoadingMore(false);
+      }, 1000);
+  };
+
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in pb-10">
        <div className="flex justify-between items-center">
         <div>
             <h2 className="text-3xl font-bold text-slate-800 tracking-tight">Financeiro</h2>
             <p className="text-slate-500 mt-1">Controle total do fluxo de caixa e comissões.</p>
         </div>
         <div className="flex gap-2">
-             <button className="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors flex items-center gap-2">
+             <button 
+                onClick={handleExportCSV}
+                className="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors flex items-center gap-2 active:scale-95"
+             >
                 <Download size={16} /> Exportar CSV
              </button>
         </div>
@@ -75,7 +104,7 @@ export const Financials: React.FC = () => {
                 </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-                {MOCK_TRANSACTIONS.map((t) => (
+                {displayedTransactions.map((t) => (
                 <tr key={t.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4 text-slate-600 text-sm">{t.date}</td>
                     <td className="px-6 py-4 font-medium text-slate-800 text-sm">{t.description}</td>
@@ -96,9 +125,18 @@ export const Financials: React.FC = () => {
             </tbody>
             </table>
         </div>
-        <div className="p-4 border-t border-slate-100 bg-slate-50 text-center">
-            <button className="text-sm text-blue-600 font-medium hover:text-blue-800 transition-colors">Carregar mais transações</button>
-        </div>
+        
+        {displayedTransactions.length < MOCK_TRANSACTIONS.length && (
+            <div className="p-4 border-t border-slate-100 bg-slate-50 text-center">
+                <button 
+                    onClick={handleLoadMore}
+                    disabled={loadingMore}
+                    className="text-sm text-blue-600 font-medium hover:text-blue-800 transition-colors flex items-center gap-2 mx-auto disabled:opacity-50"
+                >
+                    {loadingMore ? <Loader2 size={16} className="animate-spin" /> : 'Carregar mais transações'}
+                </button>
+            </div>
+        )}
       </div>
     </div>
   );
