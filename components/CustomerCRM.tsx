@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { MOCK_USERS, MOCK_NOTES, MOCK_APPOINTMENTS, SERVICES } from '../constants';
 import { UserRole } from '../types';
@@ -60,19 +61,23 @@ export const CustomerCRM: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in pb-10 h-[calc(100vh-140px)] flex flex-col">
+    <div className="space-y-4 md:space-y-6 animate-fade-in pb-10 h-[calc(100vh-140px)] flex flex-col">
       <div className="flex justify-between items-center flex-shrink-0">
         <div>
-            <h2 className="text-3xl font-bold text-slate-800 tracking-tight">Fichas de Clientes</h2>
-            <p className="text-slate-500 mt-1">Histórico técnico, preferências e CRM.</p>
+            <h2 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight">Fichas de Clientes</h2>
+            <p className="text-slate-500 mt-1 text-sm md:text-base">Histórico técnico, preferências e CRM.</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 overflow-hidden min-h-0">
         
         {/* Left Column: List */}
-        {/* Mobile Logic: Hide if customer selected. Desktop: Always show (lg:flex) */}
-        <div className={`lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-100 flex-col overflow-hidden ${selectedCustomerId ? 'hidden lg:flex' : 'flex'}`}>
+        {/* Mobile Logic: Hide this column if a customer is selected. Show if none selected. */}
+        {/* Desktop Logic: Always show (lg:flex) */}
+        <div className={`
+            lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-100 flex-col overflow-hidden
+            ${selectedCustomerId ? 'hidden lg:flex' : 'flex'}
+        `}>
             {/* Search & Filter Header */}
             <div className="p-4 border-b border-slate-100 space-y-3 bg-white z-10">
                 <div className="relative">
@@ -109,7 +114,7 @@ export const CustomerCRM: React.FC = () => {
                         onClick={() => setSelectedCustomerId(customer.id)}
                         className={`p-4 border-b border-slate-50 cursor-pointer transition-all hover:bg-slate-50 flex items-center gap-3 ${selectedCustomerId === customer.id ? 'bg-blue-50 border-blue-100' : ''}`}
                     >
-                        <img src={customer.avatar} alt={customer.name} className="w-12 h-12 rounded-full object-cover border border-slate-100" />
+                        <img src={customer.avatar} alt={customer.name} className="w-12 h-12 rounded-full object-cover border border-slate-100 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
                             <h4 className={`font-bold text-sm truncate ${selectedCustomerId === customer.id ? 'text-blue-700' : 'text-slate-800'}`}>
                                 {customer.name}
@@ -118,7 +123,7 @@ export const CustomerCRM: React.FC = () => {
                                 <Phone size={10} /> {customer.phone || 'Sem telefone'}
                             </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right flex-shrink-0">
                              {customer.lastVisit ? (
                                 <div className="text-[10px] text-slate-400 font-medium">
                                     {sortBy === 'lastVisit' ? 'Última vez:' : ''} <br/>
@@ -142,28 +147,33 @@ export const CustomerCRM: React.FC = () => {
         </div>
 
         {/* Right Column: Details */}
-        {/* Mobile Logic: Show if customer selected. Desktop: Show if selected (lg:flex), hide if not. */}
-        <div className={`lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 flex-col overflow-hidden ${selectedCustomerId ? 'flex' : 'hidden lg:flex'}`}>
+        {/* Mobile Logic: Show this column ONLY if customer is selected. */}
+        {/* Desktop Logic: Show if selected (or empty state), always visible in grid. */}
+        <div className={`
+            lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 flex-col overflow-hidden
+            ${selectedCustomerId ? 'flex' : 'hidden lg:flex'}
+        `}>
             {selectedCustomer ? (
                 <div className="flex flex-col h-full overflow-hidden">
-                    {/* Header Details */}
-                    <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    {/* Header Details - Fixed top */}
+                    <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 flex-shrink-0">
                         <div className="flex items-center gap-4 w-full md:w-auto">
+                            
                             {/* Mobile Back Button */}
                             <button 
                                 onClick={() => setSelectedCustomerId(null)}
-                                className="lg:hidden p-2 -ml-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-full transition-colors"
+                                className="lg:hidden -ml-2 p-2 text-slate-500 hover:bg-slate-200 rounded-full transition-colors mr-1"
                             >
                                 <ChevronLeft size={24} />
                             </button>
 
-                            <img src={selectedCustomer.avatar} className="w-16 h-16 md:w-20 md:h-20 rounded-2xl shadow-md object-cover border-4 border-white" alt="Avatar" />
-                            <div className="flex-1 md:flex-none">
-                                <h2 className="text-xl md:text-2xl font-bold text-slate-800">{selectedCustomer.name}</h2>
-                                <p className="text-slate-500 text-sm flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
+                            <img src={selectedCustomer.avatar} className="w-16 h-16 md:w-20 md:h-20 rounded-2xl shadow-md object-cover border-4 border-white flex-shrink-0" alt="Avatar" />
+                            <div className="flex-1 min-w-0">
+                                <h2 className="text-xl md:text-2xl font-bold text-slate-800 truncate">{selectedCustomer.name}</h2>
+                                <p className="text-slate-500 text-xs md:text-sm flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
                                     <span className="flex items-center gap-1"><Phone size={12} /> {selectedCustomer.phone}</span>
                                     <span className="hidden md:inline text-slate-300">|</span>
-                                    <span className="text-slate-500 break-all">{selectedCustomer.email}</span>
+                                    <span className="text-slate-500 truncate">{selectedCustomer.email}</span>
                                 </p>
                             </div>
                         </div>
@@ -172,7 +182,7 @@ export const CustomerCRM: React.FC = () => {
                         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto mt-2 md:mt-0">
                             <div className="flex gap-2">
                                 <button className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-sm shadow-emerald-200">
-                                    <MessageCircle size={14} /> WhatsApp
+                                    <MessageCircle size={14} /> <span className="hidden md:inline">WhatsApp</span>
                                 </button>
                                 <button className="flex-1 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors">
                                     <Calendar size={14} /> Agendar
@@ -224,7 +234,7 @@ export const CustomerCRM: React.FC = () => {
                                 {customerNotes.map(note => (
                                     <div key={note.id} className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm relative group hover:shadow-md transition-all">
                                         <p className="text-sm text-slate-700 leading-relaxed mb-2">{note.note}</p>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 flex-wrap">
                                             {note.tags.map(tag => (
                                                 <span key={tag} className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-medium border border-slate-200">
                                                     #{tag}

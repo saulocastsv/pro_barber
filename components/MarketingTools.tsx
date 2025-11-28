@@ -1,13 +1,27 @@
 
 import React, { useState } from 'react';
 import { MOCK_CAMPAIGNS } from '../constants';
-import { Campaign } from '../types';
-import { Megaphone, Gift, Send, Users, BarChart2, Plus, MessageCircle, Mail, X } from 'lucide-react';
+import { Campaign, LoyaltyAutomation } from '../types';
+import { Megaphone, Gift, Send, Users, BarChart2, Plus, MessageCircle, Mail, X, Zap, Check, Play, Pause } from 'lucide-react';
 
-export const MarketingTools: React.FC = () => {
+interface MarketingToolsProps {
+    automations?: LoyaltyAutomation[];
+    setAutomations?: (automations: LoyaltyAutomation[]) => void;
+}
+
+export const MarketingTools: React.FC<MarketingToolsProps> = ({ automations = [], setAutomations }) => {
+  const [activeTab, setActiveTab] = useState<'campaigns' | 'automation'>('campaigns');
   const [campaigns, setCampaigns] = useState<Campaign[]>(MOCK_CAMPAIGNS);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAutoModalOpen, setIsAutoModalOpen] = useState(false);
+  
+  // Campaign State
   const [newCampaign, setNewCampaign] = useState({ title: '', content: '', type: 'WHATSAPP' as 'WHATSAPP' | 'EMAIL' });
+
+  // Automation State
+  const [newAutomation, setNewAutomation] = useState<Partial<LoyaltyAutomation>>({
+      title: '', triggerType: 'APPOINTMENT_COUNT', triggerValue: 5, message: '', active: true, channel: 'WHATSAPP'
+  });
 
   const handleCreateCampaign = (e: React.FormEvent) => {
       e.preventDefault();
@@ -26,6 +40,29 @@ export const MarketingTools: React.FC = () => {
       alert('Campanha agendada com sucesso!');
   };
 
+  const handleCreateAutomation = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!setAutomations) return;
+      
+      const automation: LoyaltyAutomation = {
+          id: `auto_${Date.now()}`,
+          title: newAutomation.title || 'Nova Automação',
+          triggerType: newAutomation.triggerType || 'APPOINTMENT_COUNT',
+          triggerValue: Number(newAutomation.triggerValue),
+          message: newAutomation.message || '',
+          active: true,
+          channel: 'WHATSAPP'
+      };
+      setAutomations([...automations, automation]);
+      setIsAutoModalOpen(false);
+      alert('Automação ativada!');
+  };
+
+  const toggleAutomation = (id: string) => {
+      if (!setAutomations) return;
+      setAutomations(automations.map(a => a.id === id ? { ...a, active: !a.active } : a));
+  };
+
   return (
     <div className="space-y-8 animate-fade-in pb-10 relative">
       <div className="flex justify-between items-center">
@@ -35,7 +72,78 @@ export const MarketingTools: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {/* Tabs */}
+      <div className="flex gap-2 border-b border-slate-200">
+          <button 
+            onClick={() => setActiveTab('campaigns')}
+            className={`pb-3 px-4 text-sm font-bold transition-all relative ${activeTab === 'campaigns' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Campanhas
+            {activeTab === 'campaigns' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t-full"></div>}
+          </button>
+          <button 
+            onClick={() => setActiveTab('automation')}
+            className={`pb-3 px-4 text-sm font-bold transition-all relative ${activeTab === 'automation' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Automação
+            {activeTab === 'automation' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t-full"></div>}
+          </button>
+      </div>
+
+      {activeTab === 'automation' ? (
+          <div className="animate-fade-in">
+              <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                      <Zap className="text-amber-500" /> Regras de Automação
+                  </h3>
+                  <button 
+                    onClick={() => setIsAutoModalOpen(true)}
+                    className="bg-slate-900 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-slate-800 transition-colors flex items-center gap-2"
+                  >
+                      <Plus size={16} /> Nova Regra
+                  </button>
+              </div>
+
+              <div className="grid gap-4">
+                  {automations.map(auto => (
+                      <div key={auto.id} className={`bg-white p-6 rounded-xl border shadow-sm transition-all ${auto.active ? 'border-l-4 border-l-emerald-500 border-slate-100' : 'border-slate-200 opacity-70'}`}>
+                          <div className="flex justify-between items-start">
+                              <div className="flex gap-4">
+                                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${auto.active ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                                      <Zap size={20} />
+                                  </div>
+                                  <div>
+                                      <div className="flex items-center gap-2">
+                                          <h4 className="font-bold text-slate-800">{auto.title}</h4>
+                                          <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${auto.active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                                              {auto.active ? 'Ativo' : 'Pausado'}
+                                          </span>
+                                      </div>
+                                      <p className="text-sm text-slate-500 mt-1">
+                                          Gatilho: {auto.triggerType === 'APPOINTMENT_COUNT' ? `${auto.triggerValue}º Agendamento` : 'Aniversário'}
+                                      </p>
+                                      <div className="mt-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                          <p className="text-xs text-slate-400 font-bold uppercase mb-1 flex items-center gap-1">
+                                              <MessageCircle size={10} /> Mensagem Automática:
+                                          </p>
+                                          <p className="text-sm text-slate-600 italic">"{auto.message}"</p>
+                                      </div>
+                                  </div>
+                              </div>
+                              <button 
+                                onClick={() => toggleAutomation(auto.id)}
+                                className={`p-2 rounded-lg transition-colors ${auto.active ? 'text-emerald-600 hover:bg-emerald-50' : 'text-slate-400 hover:bg-slate-100'}`}
+                                title={auto.active ? 'Pausar' : 'Ativar'}
+                              >
+                                  {auto.active ? <Pause size={20} /> : <Play size={20} />}
+                              </button>
+                          </div>
+                      </div>
+                  ))}
+              </div>
+          </div>
+      ) : (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fade-in">
           {/* Loyalty Program Config */}
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden">
              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-bl-full -mr-10 -mt-10 z-0"></div>
@@ -163,59 +271,127 @@ export const MarketingTools: React.FC = () => {
                   </div>
               </div>
           </div>
+          
+      </div>
+      )}
 
-          {/* New Campaign Modal */}
-          {isModalOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
-                  <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-                      <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                          <h3 className="text-lg font-bold text-slate-800">Nova Campanha</h3>
-                          <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1">
-                              <X size={20} />
-                          </button>
+      {/* New Campaign Modal */}
+      {isModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+                  <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                      <h3 className="text-lg font-bold text-slate-800">Nova Campanha</h3>
+                      <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1">
+                          <X size={20} />
+                      </button>
+                  </div>
+                  <form onSubmit={handleCreateCampaign} className="p-6 space-y-4">
+                      <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Título da Campanha</label>
+                          <input 
+                            required
+                            type="text" 
+                            className="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 placeholder:text-slate-400"
+                            placeholder="Ex: Promoção Relâmpago"
+                            value={newCampaign.title}
+                            onChange={e => setNewCampaign({...newCampaign, title: e.target.value})}
+                          />
                       </div>
-                      <form onSubmit={handleCreateCampaign} className="p-6 space-y-4">
+                      <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Canal de Envio</label>
+                          <select 
+                            className="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-900"
+                            value={newCampaign.type}
+                            onChange={e => setNewCampaign({...newCampaign, type: e.target.value as 'WHATSAPP' | 'EMAIL'})}
+                          >
+                              <option value="WHATSAPP">WhatsApp</option>
+                              <option value="EMAIL">E-mail Marketing</option>
+                          </select>
+                      </div>
+                      <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Mensagem</label>
+                          <textarea 
+                            required
+                            rows={4}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 placeholder:text-slate-400 resize-none"
+                            placeholder="Olá {nome}, aproveite 20% off..."
+                            value={newCampaign.content}
+                            onChange={e => setNewCampaign({...newCampaign, content: e.target.value})}
+                          />
+                      </div>
+                      <button type="submit" className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-800 transition-colors shadow-lg mt-2 flex items-center justify-center gap-2">
+                          <Send size={18} /> Agendar Disparo
+                      </button>
+                  </form>
+              </div>
+          </div>
+      )}
+
+      {/* New Automation Modal */}
+      {isAutoModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+                  <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                      <h3 className="text-lg font-bold text-slate-800">Nova Regra de Fidelidade</h3>
+                      <button onClick={() => setIsAutoModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1">
+                          <X size={20} />
+                      </button>
+                  </div>
+                  <form onSubmit={handleCreateAutomation} className="p-6 space-y-4">
+                      <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Título da Regra</label>
+                          <input 
+                            required
+                            type="text" 
+                            className="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-900"
+                            placeholder="Ex: Cupom 10º Corte"
+                            value={newAutomation.title}
+                            onChange={e => setNewAutomation({...newAutomation, title: e.target.value})}
+                          />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
                           <div>
-                              <label className="block text-sm font-medium text-slate-700 mb-1">Título da Campanha</label>
-                              <input 
-                                required
-                                type="text" 
-                                className="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 placeholder:text-slate-400"
-                                placeholder="Ex: Promoção Relâmpago"
-                                value={newCampaign.title}
-                                onChange={e => setNewCampaign({...newCampaign, title: e.target.value})}
-                              />
-                          </div>
-                          <div>
-                              <label className="block text-sm font-medium text-slate-700 mb-1">Canal de Envio</label>
+                              <label className="block text-sm font-medium text-slate-700 mb-1">Gatilho</label>
                               <select 
                                 className="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-900"
-                                value={newCampaign.type}
-                                onChange={e => setNewCampaign({...newCampaign, type: e.target.value as 'WHATSAPP' | 'EMAIL'})}
+                                value={newAutomation.triggerType}
+                                onChange={e => setNewAutomation({...newAutomation, triggerType: e.target.value as any})}
                               >
-                                  <option value="WHATSAPP">WhatsApp</option>
-                                  <option value="EMAIL">E-mail Marketing</option>
+                                  <option value="APPOINTMENT_COUNT">Nº de Agendamentos</option>
+                                  <option value="BIRTHDAY">Aniversário</option>
                               </select>
                           </div>
                           <div>
-                              <label className="block text-sm font-medium text-slate-700 mb-1">Mensagem</label>
-                              <textarea 
+                              <label className="block text-sm font-medium text-slate-700 mb-1">Valor</label>
+                              <input 
                                 required
-                                rows={4}
-                                className="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 placeholder:text-slate-400 resize-none"
-                                placeholder="Olá {nome}, aproveite 20% off..."
-                                value={newCampaign.content}
-                                onChange={e => setNewCampaign({...newCampaign, content: e.target.value})}
+                                type="number" 
+                                min="1"
+                                className="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-900"
+                                placeholder="Ex: 5"
+                                value={newAutomation.triggerValue}
+                                onChange={e => setNewAutomation({...newAutomation, triggerValue: Number(e.target.value)})}
                               />
                           </div>
-                          <button type="submit" className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-800 transition-colors shadow-lg mt-2 flex items-center justify-center gap-2">
-                              <Send size={18} /> Agendar Disparo
-                          </button>
-                      </form>
-                  </div>
+                      </div>
+                      <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Mensagem Automática</label>
+                          <textarea 
+                            required
+                            rows={3}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 resize-none"
+                            placeholder="Escreva a mensagem que será enviada..."
+                            value={newAutomation.message}
+                            onChange={e => setNewAutomation({...newAutomation, message: e.target.value})}
+                          />
+                      </div>
+                      <button type="submit" className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-800 transition-colors shadow-lg mt-2 flex items-center justify-center gap-2">
+                          <Check size={18} /> Ativar Regra
+                      </button>
+                  </form>
               </div>
-          )}
-      </div>
+          </div>
+      )}
     </div>
   );
 };

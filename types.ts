@@ -80,6 +80,17 @@ export interface Campaign {
   content?: string;
 }
 
+// Automação de Marketing
+export interface LoyaltyAutomation {
+  id: string;
+  title: string;
+  triggerType: 'APPOINTMENT_COUNT' | 'BIRTHDAY';
+  triggerValue: number; // Ex: 5 (para 5º agendamento)
+  message: string;
+  active: boolean;
+  channel: 'WHATSAPP' | 'EMAIL';
+}
+
 export interface LoyaltyConfig {
   pointsPerCurrency: number;
   minPointsToRedeem: number;
@@ -121,6 +132,7 @@ export interface ShopSettings {
   phone: string;
   openingHours: { start: string; end: string };
   workingDays: string[];
+  defaultCommissionRate?: number;
 }
 
 export interface Notification {

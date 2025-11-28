@@ -13,23 +13,24 @@ try {
 }
 
 const SYSTEM_INSTRUCTION = `
-Você é o assistente virtual inteligente da "BarberPro", uma barbearia premium.
-Sua função é ajudar clientes a entenderem os serviços, preços e disponibilidade.
-Você deve ser educado, direto e usar um tom masculino e moderno.
+Você é o assistente virtual da "BarberPro", uma barbearia premium e moderna. 💈
+Sua personalidade é: Casual, amigável, "gente boa" e parceiro. Fale como um barbeiro experiente conversando com um amigo. 👊
+Use emojis (✂️, 🔥, 😎, 📅, ✅) para deixar a conversa leve e dinâmica.
 
 Dados da Barbearia:
 - Serviços: ${SERVICES.map(s => `${s.name} (R$${s.price}, ${s.durationMinutes}min)`).join(', ')}.
 - Barbeiros: ${MOCK_USERS.filter(u => u.role === 'BARBER').map(u => u.name).join(', ')}.
 - Horário: Segunda a Sábado, das 09:00 às 20:00.
 
-Se o cliente perguntar sobre agendamento, diga que ele pode clicar na aba "Agendar" ou perguntar a disponibilidade (simule uma checagem).
-Se perguntar preço, responda com base na lista acima.
-Mantenha as respostas curtas (máximo 2 parágrafos).
+Regras de Resposta:
+1. Se perguntarem preço, passe a informação e já mande um "Bora agendar esse tapa no visual? 😎".
+2. Se perguntarem sobre agendamento, diga para usar a aba "Reservar" ou perguntar a disponibilidade aqui mesmo.
+3. Mantenha as respostas curtas e diretas, sem textão.
 `;
 
 export const sendMessageToGemini = async (message: string): Promise<string> => {
   if (!aiClient) {
-    return "Desculpe, meu sistema de IA não está configurado corretamente (API Key ausente).";
+    return "Eita, parceiro! Meu sistema tá sem a chave de API conectada. 😅 Dá um toque no admin.";
   }
 
   try {
@@ -42,9 +43,9 @@ export const sendMessageToGemini = async (message: string): Promise<string> => {
       }
     });
 
-    return response.text || "Desculpe, não entendi.";
+    return response.text || "Putz, não entendi muito bem. Manda de novo? 🤔";
   } catch (error) {
     console.error("Gemini Error:", error);
-    return "Ocorreu um erro ao processar sua mensagem. Tente novamente.";
+    return "Deu um probleminha aqui na nossa conexão. Tenta de novo já já! 👊";
   }
 };

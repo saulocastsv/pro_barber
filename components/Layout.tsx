@@ -63,18 +63,21 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onNavigat
 
       {/* Sidebar */}
       <aside className={`
-        fixed inset-y-0 left-0 z-50 bg-slate-900 text-slate-300 transform transition-transform duration-300 ease-in-out border-r border-slate-800 shadow-2xl flex flex-col
-        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0
-        w-[85%] sm:w-80 ${isCollapsed ? 'md:w-20' : 'md:w-72'}
+        fixed inset-y-0 left-0 z-50 bg-slate-900 text-slate-300 transform transition-all duration-300 ease-in-out border-r border-slate-800 shadow-2xl flex flex-col
+        ${isMobileMenuOpen ? 'translate-x-0 w-full' : '-translate-x-full w-full'} 
+        md:translate-x-0 ${isCollapsed ? 'md:w-20' : 'md:w-72'}
       `}>
         {/* Logo Area */}
-        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between px-6'} h-20 border-b border-slate-800/50 bg-slate-900 transition-all shrink-0`}>
-          <div className="flex items-center gap-3 group cursor-pointer" onClick={() => handleMobileLinkClick('dashboard')}>
+        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between px-6'} h-20 border-b border-slate-800/50 bg-slate-900 transition-all shrink-0 overflow-hidden`}>
+          <div 
+            className={`flex items-center gap-3 group cursor-pointer ${isCollapsed ? 'justify-center w-full' : ''}`} 
+            onClick={() => handleMobileLinkClick('dashboard')}
+          >
             <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-600 rounded-xl flex items-center justify-center text-slate-900 shadow-lg shadow-amber-500/20 group-hover:scale-105 transition-transform flex-shrink-0">
                <Scissors size={20} strokeWidth={2.5} /> 
             </div>
             {!isCollapsed && (
-                <div className="animate-fade-in whitespace-nowrap">
+                <div className="animate-fade-in whitespace-nowrap opacity-100 transition-opacity duration-300">
                     <span className="text-xl font-bold tracking-tight text-white block leading-none">Barber<span className="text-amber-500">Pro</span></span>
                     <span className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Management</span>
                 </div>
@@ -94,7 +97,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onNavigat
                 key={item.id}
                 onClick={() => handleMobileLinkClick(item.id)}
                 className={`
-                    w-full flex items-center ${isCollapsed ? 'justify-center' : 'justify-between px-4'} py-3.5 rounded-xl transition-all duration-200 group relative touch-manipulation
+                    w-full flex items-center ${isCollapsed ? 'justify-center px-2' : 'justify-between px-4'} py-3.5 rounded-xl transition-all duration-200 group relative touch-manipulation
                     ${isActive 
                     ? 'bg-slate-800 text-white font-semibold shadow-inner' 
                     : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'}
@@ -103,7 +106,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onNavigat
                 >
                 <div className={`flex items-center gap-3 relative z-10`}>
                     <item.icon size={20} className={`flex-shrink-0 ${isActive ? 'text-amber-500' : 'text-slate-500 group-hover:text-slate-300'}`} />
-                    {!isCollapsed && <span className="whitespace-nowrap">{item.label}</span>}
+                    {!isCollapsed && <span className="whitespace-nowrap opacity-100 transition-opacity duration-300">{item.label}</span>}
                 </div>
                 {isActive && (
                     <div className={`w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)] absolute ${isCollapsed ? 'top-2 right-2' : 'right-2'}`}></div>
@@ -114,16 +117,20 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onNavigat
         </nav>
 
         {/* User Profile */}
-        <div className={`p-4 border-t border-slate-800 bg-slate-900/50 shrink-0 pb-safe ${isCollapsed ? 'items-center' : ''}`}>
+        <div className={`p-4 border-t border-slate-800 bg-slate-900/50 shrink-0 pb-safe transition-all ${isCollapsed ? 'items-center px-2' : ''}`}>
           {currentUser ? (
               <>
-                <div className={`bg-slate-800/50 rounded-2xl p-2 flex items-center gap-3 mb-3 border border-slate-800 hover:border-slate-700 transition-colors cursor-pointer group ${isCollapsed ? 'justify-center' : ''}`} onClick={() => handleMobileLinkClick('settings')}>
+                <div 
+                    className={`bg-slate-800/50 rounded-2xl p-2 flex items-center gap-3 mb-3 border border-slate-800 hover:border-slate-700 transition-all cursor-pointer group ${isCollapsed ? 'justify-center' : ''}`} 
+                    onClick={() => handleMobileLinkClick('settings')}
+                    title={isCollapsed ? currentUser.name : ''}
+                >
                     <div className="relative flex-shrink-0">
                         <img src={currentUser.avatar} alt="User" className="w-9 h-9 rounded-full border border-slate-600 group-hover:border-amber-500 transition-colors object-cover" />
                         <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-slate-800 rounded-full"></div>
                     </div>
                     {!isCollapsed && (
-                        <div className="flex-1 overflow-hidden animate-fade-in">
+                        <div className="flex-1 overflow-hidden animate-fade-in opacity-100 transition-opacity">
                             <p className="text-xs font-semibold text-white truncate">{currentUser.name}</p>
                             <p className="text-[10px] text-slate-500 truncate capitalize">{currentUser.role.toLowerCase()}</p>
                             {currentUser.points !== undefined && (
@@ -134,18 +141,19 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onNavigat
                 </div>
                 <button 
                     onClick={handleMobileLogout}
-                    className={`w-full flex items-center justify-center gap-2 px-3 py-3 md:py-2 rounded-xl border border-dashed border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white hover:border-slate-600 transition-all text-xs font-medium uppercase tracking-wider touch-manipulation ${isCollapsed ? 'px-0' : ''}`}
+                    className={`w-full flex items-center justify-center gap-2 px-3 py-3 md:py-2 rounded-xl border border-dashed border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white hover:border-slate-600 transition-all text-xs font-medium uppercase tracking-wider touch-manipulation ${isCollapsed ? 'px-0 border-transparent hover:border-slate-600' : ''}`}
                     title="Sair"
                 >
                     <LogOut size={16} /> {!isCollapsed && 'Sair'}
                 </button>
               </>
           ) : (
-             <div className="text-center p-4 bg-slate-800/30 rounded-xl">
+             <div className={`text-center bg-slate-800/30 rounded-xl transition-all ${isCollapsed ? 'p-2' : 'p-4'}`}>
                  {!isCollapsed && <p className="text-xs text-slate-400 mb-3">Modo Visitante</p>}
                  <button 
                     onClick={handleMobileLogout} 
-                    className="w-full bg-amber-500 text-slate-900 font-bold py-3 md:py-2 rounded-lg text-xs hover:bg-amber-400 transition-colors flex items-center justify-center touch-manipulation"
+                    className={`w-full bg-amber-500 text-slate-900 font-bold rounded-lg text-xs hover:bg-amber-400 transition-colors flex items-center justify-center touch-manipulation ${isCollapsed ? 'py-2 px-0' : 'py-3 md:py-2'}`}
+                    title="Fazer Login"
                  >
                     {!isCollapsed ? 'Fazer Login' : <LogOut size={16} className="rotate-180"/>}
                  </button>
@@ -155,14 +163,16 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onNavigat
       </aside>
 
       {/* Main Content */}
-      <div className={`flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 relative transition-all duration-300 ${isCollapsed ? 'md:ml-20' : 'md:ml-72'}`}>
+      <div className={`flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 relative transition-all duration-300 ease-in-out ${isCollapsed ? 'md:ml-20' : 'md:ml-72'}`}>
         {/* Header */}
-        <header className="h-16 md:h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-4 md:px-10 sticky top-0 z-30 shrink-0">
+        <header className="h-16 md:h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-4 md:px-10 sticky top-0 z-30 shrink-0 shadow-sm">
           <div className="flex items-center gap-3 md:gap-4">
+            {/* Mobile Menu Toggle */}
             <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden text-slate-600 p-2 -ml-2 hover:bg-slate-100 rounded-lg transition-colors active:scale-95">
                 <Menu size={24} />
             </button>
 
+            {/* Desktop Sidebar Toggle */}
             <button 
                 onClick={() => setIsCollapsed(!isCollapsed)}
                 className="hidden md:flex text-slate-400 hover:text-slate-800 p-2 rounded-lg hover:bg-slate-100 transition-colors"
@@ -208,7 +218,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onNavigat
                             <div className="p-4 border-b border-slate-100 bg-slate-50">
                                 <h4 className="font-bold text-slate-800 text-sm">Notificações</h4>
                             </div>
-                            <div className="max-h-80 overflow-y-auto">
+                            <div className="max-h-80 overflow-y-auto custom-scrollbar">
                                 {MOCK_NOTIFICATIONS.map(note => (
                                     <div key={note.id} className={`p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors ${!note.read ? 'bg-blue-50/30' : ''}`}>
                                         <div className="flex justify-between items-start mb-1">

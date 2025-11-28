@@ -1,10 +1,20 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { MOCK_STORE_PRODUCTS, MOCK_INVENTORY, LOYALTY_RULES } from '../constants';
 import { StoreProduct, CartItem, User } from '../types';
-import { ShoppingBag, Star, Plus, Minus, ShoppingCart, X, ChevronLeft, ChevronRight, Gift, Trash2, Package, Check, CreditCard, Loader2, ArrowRight } from 'lucide-react';
+import { ShoppingBag, Star, Plus, Minus, ShoppingCart, X, ChevronLeft, ChevronRight, Gift, Trash2, Package, Check, CreditCard, Loader2, ArrowRight, MessageSquare, Send, User as UserIcon, CheckCircle } from 'lucide-react';
 
 interface ShopProps {
   currentUser: User;
+}
+
+// Local interface for reviews
+interface Review {
+  id: string;
+  userName: string;
+  userAvatar: string;
+  rating: number;
+  comment: string;
+  date: string;
 }
 
 export const Shop: React.FC<ShopProps> = ({ currentUser }) => {
@@ -14,7 +24,6 @@ export const Shop: React.FC<ShopProps> = ({ currentUser }) => {
   // --- PERSISTÊNCIA DO CARRINHO ---
   const CART_STORAGE_KEY = `barberpro_cart_${currentUser.id}`;
 
-  // Inicializa o carrinho lendo do localStorage
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
       const savedCart = localStorage.getItem(CART_STORAGE_KEY);
@@ -25,7 +34,6 @@ export const Shop: React.FC<ShopProps> = ({ currentUser }) => {
     }
   });
 
-  // Salva no localStorage sempre que o carrinho mudar
   useEffect(() => {
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
   }, [cart, CART_STORAGE_KEY]);
@@ -34,11 +42,20 @@ export const Shop: React.FC<ShopProps> = ({ currentUser }) => {
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   
+  // Success Modal State
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [lastOrderDetails, setLastOrderDetails] = useState<{total: number, pointsEarned: number} | null>(null);
+  
   // Detalhes do produto state
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariation, setSelectedVariation] = useState<string>('');
   const [quantity, setQuantity] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState('Todos');
+
+  // Reviews State
+  const [productReviews, setProductReviews] = useState<Review[]>([]);
+  const [userRating, setUserRating] = useState(0);
+  const [userComment, setUserComment] = useState('');
 
   // Pontos
   const [usePoints, setUsePoints] = useState(false);
@@ -70,15 +87,60 @@ export const Shop: React.FC<ShopProps> = ({ currentUser }) => {
     ? allProducts 
     : allProducts.filter(p => p.category === categoryFilter);
 
-  // --- Helper de Preço Dinâmico (Mock) ---
-  const getVariationPrice = (product: StoreProduct, variation: string) => {
-      // Lógica simulada para alterar preço conforme a variação escolhida nos mocks
-      if (product.id === 'sp1' && variation === '50g') return 28.00; // Pomada menor
-      if (product.id === 'sp2' && variation === '60ml') return 59.90; // Óleo maior
-      return product.price; // Preço base
+  // --- Mock Reviews Loader ---
+  useEffect(() => {
+    if (selectedProduct) {
+        // Generate mock reviews for demo purposes
+        const mockReviews: Review[] = [
+            {
+                id: 'r1',
+                userName: 'Roberto Silva',
+                userAvatar: 'https://picsum.photos/seed/c1/100/100',
+                rating: 5,
+                comment: 'Produto excelente! Cheiro muito bom e fixação duradoura.',
+                date: '15/10/2023'
+            },
+            {
+                id: 'r2',
+                userName: 'André Santos',
+                userAvatar: 'https://picsum.photos/seed/c3/100/100',
+                rating: 4,
+                comment: 'Muito bom, mas achei a embalagem pequena.',
+                date: '20/10/2023'
+            }
+        ];
+        // If it's an inventory item (usually new), maybe no reviews yet
+        setProductReviews(selectedProduct.id.startsWith('inv_') ? [] : mockReviews);
+        setUserRating(0);
+        setUserComment('');
+    }
+  }, [selectedProduct]);
+
+  const handleSubmitReview = () => {
+      if (userRating === 0 || !userComment.trim()) return;
+
+      const newReview: Review = {
+          id: `new_${Date.now()}`,
+          userName: currentUser.name,
+          userAvatar: currentUser.avatar,
+          rating: userRating,
+          comment: userComment,
+          date: new Date().toLocaleDateString('pt-BR')
+      };
+
+      setProductReviews([newReview, ...productReviews]);
+      setUserComment('');
+      setUserRating(0);
+      alert('Obrigado pela sua avaliação!');
   };
 
-  // Preço atual calculado com base na variação selecionada
+  // --- Helper de Preço Dinâmico (Mock) ---
+  const getVariationPrice = (product: StoreProduct, variation: string) => {
+      if (product.id === 'sp1' && variation === '50g') return 28.00; 
+      if (product.id === 'sp2' && variation === '60ml') return 59.90; 
+      return product.price; 
+  };
+
   const currentDisplayPrice = useMemo(() => {
       if (!selectedProduct) return 0;
       if (!selectedVariation) return selectedProduct.price;
@@ -91,7 +153,7 @@ export const Shop: React.FC<ShopProps> = ({ currentUser }) => {
     
     const newItem: CartItem = {
       ...product,
-      price: priceToUse, // Sobrescreve o preço base com o preço da variação
+      price: priceToUse, 
       cartId: `${product.id}-${variation || 'default'}-${Date.now()}`,
       selectedVariation: variation || (product.variations ? product.variations[0] : 'Padrão'),
       quantity: qty
@@ -124,19 +186,17 @@ export const Shop: React.FC<ShopProps> = ({ currentUser }) => {
       setSelectedProduct(product);
       setActiveImageIndex(0);
       setQuantity(1);
-      // Seleciona a primeira variação por padrão
       setSelectedVariation(product.variations && product.variations.length > 0 ? product.variations[0] : 'Padrão');
       setView('details');
   };
 
   const cartTotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   
-  // Loyalty Logic
   const currentPoints = currentUser.points || 0;
   const canRedeemPoints = currentPoints >= LOYALTY_RULES.MIN_POINTS_TO_REDEEM;
   
   const maxDiscount = currentPoints / LOYALTY_RULES.DISCOUNT_CONVERSION_RATE;
-  const discount = usePoints ? Math.min(maxDiscount, cartTotal * 0.5) : 0; // Max 50% discount
+  const discount = usePoints ? Math.min(maxDiscount, cartTotal * 0.5) : 0; 
   const finalTotal = cartTotal - discount;
 
   const initiateCheckout = () => {
@@ -147,13 +207,23 @@ export const Shop: React.FC<ShopProps> = ({ currentUser }) => {
   const handleFinalizePurchase = () => {
       setIsProcessingCheckout(true);
       
-      // Simula processamento
+      // Calculate potential points BEFORE clearing cart
+      const pointsEarned = !usePoints ? Math.floor(finalTotal * LOYALTY_RULES.POINTS_PER_CURRENCY) : 0;
+
       setTimeout(() => {
           setIsProcessingCheckout(false);
           setIsCheckoutModalOpen(false);
+          
+          // Set success state details
+          setLastOrderDetails({
+              total: finalTotal,
+              pointsEarned: pointsEarned
+          });
+          setShowSuccessModal(true);
+
+          // Clear cart
           setCart([]); 
           setUsePoints(false);
-          alert(`Compra realizada com sucesso! Total pago: R$ ${finalTotal.toFixed(2)}. ${!usePoints ? `Você ganhou ${Math.floor(finalTotal * LOYALTY_RULES.POINTS_PER_CURRENCY)} pontos!` : 'Desconto aplicado.'}`);
       }, 2000);
   };
 
@@ -162,13 +232,12 @@ export const Shop: React.FC<ShopProps> = ({ currentUser }) => {
       {/* Header da Loja */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 animate-fade-in">
         <div>
-            <h2 className="text-3xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
+            <h2 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
                 <ShoppingBag className="text-amber-500" /> Loja BarberPro
             </h2>
-            <p className="text-slate-500 mt-1">Produtos premium e estoque do salão.</p>
+            <p className="text-slate-500 mt-1 text-sm md:text-base">Produtos premium e estoque do salão.</p>
         </div>
         
-        {/* Botão Carrinho Desktop */}
         <button 
             onClick={() => setIsCartOpen(true)}
             className="hidden md:flex bg-slate-900 text-white p-3 rounded-xl hover:bg-slate-800 transition-all shadow-lg hover:scale-105 active:scale-95 items-center gap-2 relative"
@@ -183,7 +252,6 @@ export const Shop: React.FC<ShopProps> = ({ currentUser }) => {
         </button>
       </div>
 
-      {/* Botão Flutuante Carrinho Mobile */}
       <button 
         onClick={() => setIsCartOpen(true)}
         className="md:hidden fixed bottom-6 right-6 z-40 bg-slate-900 text-white p-4 rounded-full shadow-xl hover:bg-slate-800 transition-transform active:scale-90 flex items-center justify-center"
@@ -215,7 +283,7 @@ export const Shop: React.FC<ShopProps> = ({ currentUser }) => {
                 ))}
             </div>
 
-            {/* Product Grid */}
+            {/* Changed to 1 column on mobile for better visibility */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {filteredProducts.map(product => {
                     const isInventoryItem = product.id.startsWith('inv_');
@@ -225,7 +293,7 @@ export const Shop: React.FC<ShopProps> = ({ currentUser }) => {
                             key={product.id} 
                             className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-xl transition-all duration-300 group flex flex-col h-full"
                         >
-                            <div className="relative h-48 overflow-hidden bg-slate-100 cursor-pointer" onClick={() => openDetails(product)}>
+                            <div className="relative h-64 sm:h-48 overflow-hidden bg-slate-100 cursor-pointer" onClick={() => openDetails(product)}>
                                 <img 
                                     src={product.images[0]} 
                                     alt={product.name} 
@@ -264,7 +332,7 @@ export const Shop: React.FC<ShopProps> = ({ currentUser }) => {
                                     <button 
                                         onClick={() => addToCart(product, product.variations?.[0])}
                                         disabled={!product.inStock}
-                                        className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white p-2.5 rounded-xl transition-colors shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                                        className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white p-2.5 rounded-xl transition-colors shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-95 touch-manipulation"
                                     >
                                         <Plus size={20} />
                                     </button>
@@ -278,7 +346,7 @@ export const Shop: React.FC<ShopProps> = ({ currentUser }) => {
       ) : (
           /* DETAILS VIEW */
           selectedProduct && (
-            <div className="animate-fade-in max-w-5xl mx-auto pb-20">
+            <div className="animate-fade-in max-w-5xl mx-auto pb-24 md:pb-20">
                 <button onClick={() => setView('grid')} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold mb-6 group">
                     <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" /> Voltar para Loja
                 </button>
@@ -374,17 +442,17 @@ export const Shop: React.FC<ShopProps> = ({ currentUser }) => {
                         <div className="mb-8">
                             <p className="text-sm font-bold text-slate-700 mb-2">Quantidade</p>
                             <div className="flex items-center gap-4">
-                                <div className="flex items-center border border-slate-200 rounded-lg">
+                                <div className="flex items-center border border-slate-200 rounded-lg h-12">
                                     <button 
                                       onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                                      className="p-3 text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-colors"
+                                      className="px-4 text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-colors h-full flex items-center justify-center"
                                     >
                                         <Minus size={18} />
                                     </button>
-                                    <span className="w-12 text-center font-bold text-slate-900">{quantity}</span>
+                                    <span className="w-12 text-center font-bold text-slate-900 text-lg">{quantity}</span>
                                     <button 
                                       onClick={() => setQuantity(quantity + 1)}
-                                      className="p-3 text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-colors"
+                                      className="px-4 text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-colors h-full flex items-center justify-center"
                                     >
                                         <Plus size={18} />
                                     </button>
@@ -405,10 +473,84 @@ export const Shop: React.FC<ShopProps> = ({ currentUser }) => {
                             <button 
                                 onClick={() => addToCart(selectedProduct, selectedVariation, quantity, currentDisplayPrice)}
                                 disabled={!selectedProduct.inStock}
-                                className="flex-1 bg-slate-900 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-slate-800 hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                className="flex-1 bg-slate-900 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-slate-800 hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:scale-95 touch-manipulation"
                             >
                                 <ShoppingBag size={20} /> 
                                 {selectedProduct.inStock ? `Adicionar - R$ ${(currentDisplayPrice * quantity).toFixed(2)}` : 'Indisponível'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* --- SEÇÃO DE AVALIAÇÕES E COMENTÁRIOS --- */}
+                <div className="mt-8 bg-slate-50 p-6 md:p-8 rounded-3xl border border-slate-100">
+                    <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                        <MessageSquare className="text-blue-500" /> Avaliações do Produto
+                    </h3>
+
+                    {/* Lista de Reviews */}
+                    <div className="space-y-4 mb-8">
+                        {productReviews.length > 0 ? (
+                            productReviews.map(review => (
+                                <div key={review.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                                    <div className="flex items-start justify-between mb-2">
+                                        <div className="flex items-center gap-3">
+                                            <img src={review.userAvatar} alt={review.userName} className="w-10 h-10 rounded-full object-cover bg-slate-200" />
+                                            <div>
+                                                <p className="font-bold text-slate-800 text-sm">{review.userName}</p>
+                                                <p className="text-xs text-slate-400">{review.date}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex text-amber-400">
+                                            {[...Array(5)].map((_, i) => (
+                                                <Star key={i} size={14} fill={i < review.rating ? "currentColor" : "none"} />
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <p className="text-sm text-slate-600 pl-13 ml-13">{review.comment}</p>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-center text-slate-400 py-4 italic">Seja o primeiro a avaliar este produto!</p>
+                        )}
+                    </div>
+
+                    {/* Formulário de Nova Avaliação */}
+                    <div className="bg-white p-6 rounded-2xl border border-blue-100 shadow-sm">
+                        <h4 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            <UserIcon size={18} className="text-slate-400" /> Deixe sua opinião
+                        </h4>
+                        
+                        <div className="flex items-center gap-2 mb-4">
+                            <span className="text-sm text-slate-500 font-medium mr-2">Sua nota:</span>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <button 
+                                    key={star} 
+                                    onClick={() => setUserRating(star)}
+                                    className="transition-transform hover:scale-110 focus:outline-none"
+                                >
+                                    <Star 
+                                        size={24} 
+                                        className={star <= userRating ? "text-amber-400 fill-amber-400" : "text-slate-300"} 
+                                    />
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="relative">
+                            <textarea
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                                rows={3}
+                                placeholder="Conte o que achou do produto..."
+                                value={userComment}
+                                onChange={(e) => setUserComment(e.target.value)}
+                            />
+                            <button 
+                                onClick={handleSubmitReview}
+                                disabled={userRating === 0 || !userComment.trim()}
+                                className="absolute bottom-3 right-3 bg-slate-900 text-white p-2 rounded-lg hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            >
+                                <Send size={16} />
                             </button>
                         </div>
                     </div>
@@ -421,8 +563,8 @@ export const Shop: React.FC<ShopProps> = ({ currentUser }) => {
           <div className="fixed inset-0 z-50 flex justify-end">
               <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></div>
               <div className="relative w-full md:max-w-md bg-white h-full shadow-2xl flex flex-col animate-fade-in">
-                  <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white z-10">
-                      <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                  <div className="p-4 md:p-6 border-b border-slate-100 flex justify-between items-center bg-white z-10">
+                      <h3 className="text-lg md:text-xl font-bold text-slate-800 flex items-center gap-2">
                           <ShoppingCart className="text-blue-600" /> Seu Carrinho
                       </h3>
                       <button onClick={() => setIsCartOpen(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600">
@@ -430,7 +572,7 @@ export const Shop: React.FC<ShopProps> = ({ currentUser }) => {
                       </button>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                  <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
                       {cart.length === 0 ? (
                           <div className="text-center py-20 text-slate-400">
                               <ShoppingBag size={64} className="mx-auto mb-4 opacity-20" />
@@ -439,20 +581,20 @@ export const Shop: React.FC<ShopProps> = ({ currentUser }) => {
                           </div>
                       ) : (
                           cart.map(item => (
-                              <div key={item.cartId} className="flex gap-4">
-                                  <div className="w-20 h-20 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0">
+                              <div key={item.cartId} className="flex gap-3 md:gap-4 bg-slate-50 p-2 rounded-xl md:bg-transparent md:p-0">
+                                  <div className="w-16 h-16 md:w-20 md:h-20 bg-white rounded-lg overflow-hidden flex-shrink-0 border border-slate-200 md:border-none">
                                       <img src={item.images[0]} alt={item.name} className="w-full h-full object-cover" />
                                   </div>
-                                  <div className="flex-1">
-                                      <h4 className="font-bold text-slate-800 line-clamp-1">{item.name}</h4>
+                                  <div className="flex-1 min-w-0">
+                                      <h4 className="font-bold text-slate-800 text-sm md:text-base line-clamp-1">{item.name}</h4>
                                       <p className="text-xs text-slate-500 mb-2">{item.selectedVariation}</p>
                                       <div className="flex justify-between items-center">
-                                          <div className="flex items-center border border-slate-200 rounded-lg h-10">
-                                              <button onClick={() => updateQuantity(item.cartId, -1)} className="px-3 hover:bg-slate-50 h-full flex items-center justify-center"><Minus size={14} /></button>
-                                              <span className="px-2 text-sm font-bold min-w-[1.5rem] text-center">{item.quantity}</span>
-                                              <button onClick={() => updateQuantity(item.cartId, 1)} className="px-3 hover:bg-slate-50 h-full flex items-center justify-center"><Plus size={14} /></button>
+                                          <div className="flex items-center border border-slate-200 bg-white rounded-lg h-8 md:h-10">
+                                              <button onClick={() => updateQuantity(item.cartId, -1)} className="px-2 md:px-3 hover:bg-slate-50 h-full flex items-center justify-center"><Minus size={12} /></button>
+                                              <span className="px-2 text-xs md:text-sm font-bold min-w-[1.5rem] text-center">{item.quantity}</span>
+                                              <button onClick={() => updateQuantity(item.cartId, 1)} className="px-2 md:px-3 hover:bg-slate-50 h-full flex items-center justify-center"><Plus size={12} /></button>
                                           </div>
-                                          <span className="font-bold text-slate-900">R$ {(item.price * item.quantity).toFixed(2)}</span>
+                                          <span className="font-bold text-slate-900 text-sm md:text-base">R$ {(item.price * item.quantity).toFixed(2)}</span>
                                       </div>
                                   </div>
                                   <button onClick={() => removeFromCart(item.cartId)} className="text-slate-300 hover:text-red-500 self-start p-1">
@@ -464,15 +606,15 @@ export const Shop: React.FC<ShopProps> = ({ currentUser }) => {
                   </div>
 
                   {cart.length > 0 && (
-                      <div className="p-6 bg-slate-50 border-t border-slate-200">
-                          <div className="flex justify-between text-xl font-bold pt-2 mb-6 text-slate-800">
+                      <div className="p-4 md:p-6 bg-slate-50 border-t border-slate-200">
+                          <div className="flex justify-between text-lg md:text-xl font-bold pt-2 mb-4 md:mb-6 text-slate-800">
                               <span>Subtotal</span>
                               <span>R$ {cartTotal.toFixed(2)}</span>
                           </div>
 
                           <button 
                             onClick={initiateCheckout}
-                            className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"
+                            className="w-full bg-slate-900 text-white font-bold py-3 md:py-4 rounded-xl shadow-lg hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 active:scale-95"
                           >
                               Ir para Pagamento <ArrowRight size={20} />
                           </button>
@@ -486,8 +628,8 @@ export const Shop: React.FC<ShopProps> = ({ currentUser }) => {
       {isCheckoutModalOpen && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-fade-in">
               <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
-                  <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
-                      <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                  <div className="p-4 md:p-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
+                      <h3 className="text-lg md:text-xl font-bold text-slate-800 flex items-center gap-2">
                           <CreditCard className="text-blue-600" /> Checkout
                       </h3>
                       <button onClick={() => setIsCheckoutModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
@@ -495,7 +637,7 @@ export const Shop: React.FC<ShopProps> = ({ currentUser }) => {
                       </button>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+                  <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6 custom-scrollbar">
                       {/* Items Summary */}
                       <div className="space-y-4">
                           <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Resumo do Pedido</h4>
@@ -504,7 +646,7 @@ export const Shop: React.FC<ShopProps> = ({ currentUser }) => {
                                   <div className="w-12 h-12 bg-white rounded-lg overflow-hidden flex-shrink-0 border border-slate-200">
                                       <img src={item.images[0]} alt={item.name} className="w-full h-full object-cover" />
                                   </div>
-                                  <div className="flex-1">
+                                  <div className="flex-1 min-w-0">
                                       <p className="font-bold text-slate-800 text-sm line-clamp-1">{item.name}</p>
                                       <p className="text-xs text-slate-500">{item.selectedVariation} • Qtd: {item.quantity}</p>
                                   </div>
@@ -514,7 +656,7 @@ export const Shop: React.FC<ShopProps> = ({ currentUser }) => {
                       </div>
 
                       {/* Loyalty Points Section */}
-                      <div className="bg-blue-50 p-5 rounded-xl border border-blue-100">
+                      <div className="bg-blue-50 p-4 md:p-5 rounded-xl border border-blue-100">
                           <div className="flex justify-between items-center mb-3">
                               <div className="flex items-center gap-2">
                                   <div className="p-1.5 bg-amber-100 rounded-lg text-amber-600">
@@ -555,16 +697,16 @@ export const Shop: React.FC<ShopProps> = ({ currentUser }) => {
                           )}
                           <div className="flex justify-between items-end pt-4 border-t border-slate-100">
                               <span className="text-slate-500 font-medium">Total Final</span>
-                              <span className="text-3xl font-bold text-slate-900">R$ {finalTotal.toFixed(2)}</span>
+                              <span className="text-2xl md:text-3xl font-bold text-slate-900">R$ {finalTotal.toFixed(2)}</span>
                           </div>
                       </div>
                   </div>
 
-                  <div className="p-6 bg-slate-50 border-t border-slate-200">
+                  <div className="p-4 md:p-6 bg-slate-50 border-t border-slate-200">
                       <button 
                         onClick={handleFinalizePurchase}
                         disabled={isProcessingCheckout}
-                        className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl shadow-lg transition-all disabled:opacity-70 disabled:cursor-wait flex items-center justify-center gap-2"
+                        className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 md:py-4 rounded-xl shadow-lg transition-all disabled:opacity-70 disabled:cursor-wait flex items-center justify-center gap-2 active:scale-95"
                       >
                           {isProcessingCheckout ? (
                               <>
@@ -577,6 +719,44 @@ export const Shop: React.FC<ShopProps> = ({ currentUser }) => {
                           )}
                       </button>
                   </div>
+              </div>
+          </div>
+      )}
+
+      {/* Success Modal */}
+      {showSuccessModal && lastOrderDetails && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 animate-fade-in">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden text-center p-8 relative">
+                  <div className="absolute top-0 left-0 w-full h-2 bg-emerald-500"></div>
+                  
+                  <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6 text-emerald-600 shadow-inner">
+                      <CheckCircle size={48} strokeWidth={3} className="animate-bounce" />
+                  </div>
+                  
+                  <h3 className="text-2xl font-bold text-slate-900 mb-2">Compra Realizada!</h3>
+                  <p className="text-slate-500 text-sm mb-6">Seu pedido foi processado com sucesso e já estamos separando seus itens.</p>
+                  
+                  <div className="bg-slate-50 rounded-xl p-4 mb-6 border border-slate-100">
+                      <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm text-slate-500 font-medium">Total Pago</span>
+                          <span className="text-lg font-bold text-slate-900">R$ {lastOrderDetails.total.toFixed(2)}</span>
+                      </div>
+                      {lastOrderDetails.pointsEarned > 0 && (
+                          <div className="flex justify-between items-center bg-amber-50 p-2 rounded-lg border border-amber-100">
+                              <span className="text-xs text-amber-700 font-bold uppercase flex items-center gap-1">
+                                  <Gift size={12} /> Você ganhou
+                              </span>
+                              <span className="text-sm font-bold text-amber-700">+{lastOrderDetails.pointsEarned} pts</span>
+                          </div>
+                      )}
+                  </div>
+
+                  <button 
+                      onClick={() => { setShowSuccessModal(false); setView('grid'); }}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-emerald-200 transition-all flex items-center justify-center gap-2"
+                  >
+                      Continuar Comprando
+                  </button>
               </div>
           </div>
       )}

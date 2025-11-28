@@ -5,7 +5,7 @@ import { sendMessageToGemini } from '../services/geminiService';
 export const ChatAssistant: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<{role: 'user' | 'assistant', text: string}[]>([
-    { role: 'assistant', text: 'Olá! Sou a IA da BarberPro. Posso ajudar com horários, preços ou dúvidas?' }
+    { role: 'assistant', text: 'Fala, parceiro! 👊 Sou o assistente da BarberPro. Quer dar um tapa no visual, saber preços ou tirar dúvidas? Manda aí! 💈🔥' }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);

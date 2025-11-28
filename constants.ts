@@ -1,5 +1,5 @@
 
-import { User, UserRole, Service, Appointment, QueueItem, Transaction, BarbershopStats, InventoryItem, Campaign, TechnicalNote, StoreProduct, ShopSettings, Notification } from './types';
+import { User, UserRole, Service, Appointment, QueueItem, Transaction, BarbershopStats, InventoryItem, Campaign, TechnicalNote, StoreProduct, ShopSettings, Notification, LoyaltyAutomation } from './types';
 
 // --- REGRAS DE FIDELIDADE ---
 export const LOYALTY_RULES = {
@@ -13,13 +13,35 @@ export const MOCK_SHOP_SETTINGS: ShopSettings = {
   address: 'Rua Augusta, 1500 - São Paulo, SP',
   phone: '(11) 99999-0000',
   openingHours: { start: '09:00', end: '20:00' },
-  workingDays: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab']
+  workingDays: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'],
+  defaultCommissionRate: 50
 };
 
 export const MOCK_NOTIFICATIONS: Notification[] = [
   { id: 'n1', title: 'Novo Agendamento', message: 'Lucas Moura agendou para hoje às 15:00', time: '10 min atrás', read: false, type: 'INFO' },
   { id: 'n2', title: 'Estoque Baixo', message: 'Shampoo Mentolado atingiu nível mínimo.', time: '1 hora atrás', read: false, type: 'ALERT' },
   { id: 'n3', title: 'Meta Batida', message: 'Parabéns! Faturamento diário superou a meta.', time: 'Ontem', read: true, type: 'SUCCESS' },
+];
+
+export const MOCK_AUTOMATIONS: LoyaltyAutomation[] = [
+  { 
+    id: 'auto1', 
+    title: 'Fidelidade 5 Cortes', 
+    triggerType: 'APPOINTMENT_COUNT', 
+    triggerValue: 5, 
+    message: 'Parabéns! Você completou 5 cortes conosco. Aqui está um cupom de 20% OFF para o próximo: #FIDELIDADE20', 
+    active: true, 
+    channel: 'WHATSAPP' 
+  },
+  { 
+    id: 'auto2', 
+    title: 'Feliz Aniversário', 
+    triggerType: 'BIRTHDAY', 
+    triggerValue: 0, 
+    message: 'Parabéns pelo seu dia! 🎂 Venha dar um trato no visual por nossa conta hoje.', 
+    active: false, 
+    channel: 'WHATSAPP' 
+  }
 ];
 
 export const MOCK_USERS: User[] = [
