@@ -1,8 +1,13 @@
 
-import React, { useState } from 'react';
-import { User, UserRole } from '../types';
-import { LayoutDashboard, Calendar, Scissors, Users, DollarSign, LogOut, Menu, X, Clock, Bell, List, ShoppingBag, Megaphone, ClipboardList, Store, PanelLeftClose, PanelLeftOpen, Settings as SettingsIcon, Star, TrendingUp, Tags } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { User, UserRole, Notification } from '../types';
 import { MOCK_NOTIFICATIONS } from '../constants';
+import { 
+  LayoutDashboard, Calendar, Scissors, Users, DollarSign, LogOut, 
+  Menu, X, Clock, Bell, List, ShoppingBag, Megaphone, ClipboardList, 
+  Store, PanelLeftClose, PanelLeftOpen, Settings as SettingsIcon, 
+  TrendingUp, Tags, MoreHorizontal, PackageSearch, Package, Check 
+} from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -15,23 +20,48 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onNavigate, currentView, onLogout }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+    setIsNotifOpen(false);
+  }, [currentView]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setIsNotifOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const markAllRead = () => {
+    setNotifications(notifications.map(n => ({ ...n, read: true })));
+  };
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: [UserRole.OWNER, UserRole.BARBER, UserRole.CUSTOMER] }, 
+    { id: 'dashboard', label: 'Início', icon: LayoutDashboard, roles: [UserRole.OWNER, UserRole.BARBER, UserRole.CUSTOMER] }, 
     { id: 'calendar', label: 'Agenda', icon: Calendar, roles: [UserRole.OWNER] }, 
-    { id: 'queue', label: 'Fila Digital', icon: Clock, roles: [UserRole.OWNER, UserRole.BARBER] },
-    { id: 'services', label: 'Serviços', icon: Tags, roles: [UserRole.OWNER] }, // Adicionado para OWNER
+    { id: 'queue', label: 'Fila', icon: Clock, roles: [UserRole.OWNER, UserRole.BARBER] },
+    { id: 'services', label: 'Serviços', icon: Tags, roles: [UserRole.OWNER] }, 
     { id: 'strategic', label: 'Assinaturas', icon: TrendingUp, roles: [UserRole.OWNER] }, 
-    { id: 'booking', label: 'Novo Agendamento', icon: Scissors, roles: [UserRole.CUSTOMER] },
-    { id: 'appointments', label: 'Meus Cortes', icon: List, roles: [UserRole.CUSTOMER] },
-    { id: 'shop', label: 'Loja Barvo', icon: Store, roles: [UserRole.CUSTOMER] }, 
+    { id: 'booking', label: 'Reservar', icon: Scissors, roles: [UserRole.CUSTOMER] },
+    { id: 'appointments', label: 'Cortes', icon: List, roles: [UserRole.CUSTOMER] },
+    { id: 'shop', label: 'Loja', icon: Store, roles: [UserRole.CUSTOMER] }, 
+    { id: 'orders', label: 'Pedidos', icon: Package, roles: [UserRole.CUSTOMER] },
+    { id: 'order_management', label: 'Pedidos Loja', icon: PackageSearch, roles: [UserRole.OWNER] },
     { id: 'financials', label: 'Financeiro', icon: DollarSign, roles: [UserRole.OWNER] },
     { id: 'team', label: 'Equipe', icon: Users, roles: [UserRole.OWNER] },
     { id: 'inventory', label: 'Estoque', icon: ShoppingBag, roles: [UserRole.OWNER] },
     { id: 'crm', label: 'Clientes', icon: ClipboardList, roles: [UserRole.OWNER, UserRole.BARBER] }, 
     { id: 'marketing', label: 'Marketing', icon: Megaphone, roles: [UserRole.OWNER] },
-    { id: 'settings', label: 'Configurações', icon: SettingsIcon, roles: [UserRole.OWNER, UserRole.BARBER, UserRole.CUSTOMER] },
+    { id: 'settings', label: 'Ajustes', icon: SettingsIcon, roles: [UserRole.OWNER, UserRole.BARBER, UserRole.CUSTOMER] },
   ];
 
   const userRole = currentUser?.role || UserRole.CUSTOMER; 
@@ -39,109 +69,165 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onNavigat
     ? menuItems.filter(item => item.roles.includes(userRole))
     : [{ id: 'booking', label: 'Reservar', icon: Scissors, roles: [UserRole.CUSTOMER] }];
 
-  const handleNavClick = (id: string) => {
-    onNavigate(id);
-    setIsMobileMenuOpen(false);
+  const getBottomNavItems = () => {
+    if (userRole === UserRole.OWNER) return filteredMenu.filter(i => ['dashboard', 'calendar', 'order_management'].includes(i.id));
+    if (userRole === UserRole.BARBER) return filteredMenu.filter(i => ['dashboard', 'queue', 'crm'].includes(i.id));
+    return filteredMenu.filter(i => ['dashboard', 'booking', 'orders'].includes(i.id));
   };
 
-  return (
-    <div className="flex h-screen bg-slate-50 font-sans">
-      {/* Mobile Sidebar Overlay */}
-      {isMobileMenuOpen && (
-        <div className="fixed inset-0 bg-brand-dark/60 backdrop-blur-sm z-40 md:hidden" onClick={() => setIsMobileMenuOpen(false)} />
-      )}
+  const bottomNavItems = getBottomNavItems();
 
-      {/* Sidebar */}
+  return (
+    <div className="flex h-screen bg-brand-gray font-sans overflow-hidden select-none">
+      {/* Sidebar - Desktop */}
       <aside className={`
-        fixed inset-y-0 left-0 z-50 bg-brand-dark text-white transform transition-all duration-300 ease-in-out flex flex-col border-r border-white/5 shadow-2xl
-        ${isMobileMenuOpen ? 'translate-x-0 w-72' : '-translate-x-full w-72'} 
-        md:translate-x-0 ${isCollapsed ? 'md:w-20' : 'md:w-72'}
+        fixed inset-y-0 left-0 z-[60] glass-sidebar text-white transition-all duration-300 ease-in-out flex flex-col
+        ${isMobileMenuOpen ? 'translate-x-0 w-64' : '-translate-x-full w-64'} 
+        md:translate-x-0 ${isCollapsed ? 'md:w-20' : 'md:w-64'}
       `}>
-        <div className={`h-20 flex items-center ${isCollapsed ? 'justify-center' : 'px-6'} border-b border-white/5`}>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-brand-light rounded-xl flex items-center justify-center text-brand-dark shadow-inner flex-shrink-0">
-               <Scissors size={20} /> 
+        <div className={`h-16 flex items-center ${isCollapsed ? 'justify-center' : 'px-6'} border-b border-white/5`}>
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => onNavigate('dashboard')}>
+            <div className="w-8 h-8 bg-brand-light rounded-lg flex items-center justify-center text-brand-dark shadow-lg">
+               <Scissors size={18} /> 
             </div>
-            {!isCollapsed && <span className="text-2xl font-bold tracking-tight">Barvo</span>}
+            {!isCollapsed && <span className="text-lg font-extrabold tracking-tighter italic">BARVO</span>}
           </div>
+          {isMobileMenuOpen && (
+            <button onClick={() => setIsMobileMenuOpen(false)} className="ml-auto p-1.5 md:hidden text-white/50">
+              <X size={20} />
+            </button>
+          )}
         </div>
 
-        <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto custom-scrollbar">
+        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto custom-scrollbar">
           {filteredMenu.map(item => {
             const isActive = currentView === item.id;
             return (
               <button
                 key={item.id}
-                onClick={() => handleNavClick(item.id)}
+                onClick={() => onNavigate(item.id)}
                 className={`
-                  w-full flex items-center gap-3 p-3.5 rounded-2xl transition-all duration-200 group
-                  ${isActive ? 'bg-brand-light text-brand-dark font-bold shadow-lg' : 'text-slate-400 hover:bg-white/5 hover:text-white'}
+                  w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group relative
+                  ${isActive ? 'bg-white/10 text-white font-semibold' : 'text-slate-400 hover:text-white hover:bg-white/5'}
                   ${isCollapsed ? 'justify-center' : ''}
                 `}
-                title={isCollapsed ? item.label : ''}
               >
-                <item.icon size={20} className={isActive ? 'text-brand-dark' : 'text-slate-400 group-hover:text-white'} />
-                {!isCollapsed && <span>{item.label}</span>}
+                <item.icon size={18} className={isActive ? 'text-brand-light' : 'text-slate-500 group-hover:text-white'} />
+                {!isCollapsed && <span className="text-xs tracking-wide">{item.label}</span>}
+                {isActive && !isCollapsed && <div className="ml-auto w-1 h-1 bg-brand-light rounded-full" />}
               </button>
             )
           })}
         </nav>
 
-        {/* Perfil Sidebar */}
-        <div className="p-4 border-t border-white/5">
-          {currentUser && (
-            <div className={`flex items-center gap-3 p-2 bg-white/5 rounded-2xl ${isCollapsed ? 'justify-center' : ''} relative`}>
-              <img src={currentUser.avatar} className="w-9 h-9 rounded-xl object-cover border border-white/10" alt="Avatar" />
-              {!isCollapsed && (
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold truncate">{currentUser.name}</p>
-                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">{currentUser.role}</p>
-                </div>
-              )}
-              {(!isCollapsed && currentUser.role === UserRole.CUSTOMER) && (
-                <div className="bg-amber-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-sm">
-                   <Star size={8} fill="currentColor" /> {currentUser.points || 0}
-                </div>
-              )}
-            </div>
-          )}
+        <div className="p-3 border-t border-white/5">
           <button 
             onClick={onLogout}
-            className={`w-full mt-3 flex items-center gap-2 p-3 text-slate-400 hover:text-red-400 transition-colors ${isCollapsed ? 'justify-center' : ''}`}
+            className={`w-full flex items-center gap-3 p-3 text-slate-500 hover:text-red-400 hover:bg-red-400/5 rounded-xl transition-all ${isCollapsed ? 'justify-center' : ''}`}
           >
-            <LogOut size={20} /> {!isCollapsed && <span className="text-sm font-bold">Sair</span>}
+            <LogOut size={18} /> {!isCollapsed && <span className="text-xs font-semibold">Sair</span>}
           </button>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${isCollapsed ? 'md:ml-20' : 'md:ml-72'}`}>
-        <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-100 flex items-center justify-between px-4 md:px-8 sticky top-0 z-30">
+      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${isCollapsed ? 'md:ml-20' : 'md:ml-64'} pb-16 md:pb-0`}>
+        <header className="h-14 bg-white/70 backdrop-blur-md border-b border-slate-200/50 flex items-center justify-between px-4 md:px-8 sticky top-0 z-40">
           <div className="flex items-center gap-4">
-            <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2 text-brand-dark hover:bg-slate-100 rounded-lg">
-                <Menu size={24} />
+            <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-1.5 text-brand-dark bg-slate-100 rounded-lg">
+                <Menu size={18} />
             </button>
-            <button onClick={() => setIsCollapsed(!isCollapsed)} className="hidden md:p-2 text-slate-400 hover:text-brand-dark rounded-lg transition-colors">
-                {isCollapsed ? <PanelLeftOpen size={24} /> : <PanelLeftClose size={24} />}
+            <button onClick={() => setIsCollapsed(!isCollapsed)} className="hidden md:flex p-2 text-slate-400 hover:text-brand-dark hover:bg-white rounded-lg transition-all border border-slate-100">
+                {isCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
             </button>
-            <h1 className="text-xl md:text-2xl font-bold text-brand-dark capitalize tracking-tight">
-                {menuItems.find(i => i.id === currentView)?.label || 'Agendamento'}
+            <h1 className="text-base md:text-lg font-bold text-brand-black tracking-tight">
+                {menuItems.find(i => i.id === currentView)?.label || 'Barvo'}
             </h1>
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="bg-slate-100 p-2 rounded-full text-slate-400 hover:text-brand-dark transition-colors cursor-pointer relative">
-                <Bell size={22} />
-                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+          <div className="flex items-center gap-3 relative" ref={notifRef}>
+            {/* Notification Button */}
+            <div 
+              onClick={() => setIsNotifOpen(!isNotifOpen)}
+              className={`bg-white p-2 rounded-lg border border-slate-100 cursor-pointer relative transition-all active:scale-95 ${isNotifOpen ? 'text-brand-dark border-brand-light' : 'text-slate-400 hover:text-brand-dark'}`}
+            >
+                <Bell size={16} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-black rounded-full border-2 border-white flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                )}
             </div>
+
+            {/* Notification Dropdown */}
+            {isNotifOpen && (
+              <div className="absolute right-0 top-full mt-2 w-72 md:w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden animate-fade-in origin-top-right">
+                <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                  <span className="text-xs font-black text-brand-dark uppercase tracking-widest">Notificações</span>
+                  <button onClick={markAllRead} className="text-[10px] font-bold text-blue-600 hover:underline">Marcar todas como lidas</button>
+                </div>
+                <div className="max-h-80 overflow-y-auto custom-scrollbar">
+                  {notifications.length > 0 ? notifications.map(n => (
+                    <div key={n.id} className={`p-4 border-b border-slate-50 flex gap-3 hover:bg-slate-50 transition-colors ${!n.read ? 'bg-blue-50/30' : ''}`}>
+                      <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${n.read ? 'bg-slate-200' : 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]'}`} />
+                      <div>
+                        <p className={`text-xs font-bold ${!n.read ? 'text-slate-900' : 'text-slate-600'}`}>{n.title}</p>
+                        <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{n.message}</p>
+                        <p className="text-[9px] text-slate-400 mt-2 font-medium uppercase">{n.time}</p>
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="p-10 text-center text-slate-400">
+                      <Bell size={24} className="mx-auto mb-2 opacity-20" />
+                      <p className="text-xs font-medium">Nenhuma notificação por enquanto.</p>
+                    </div>
+                  )}
+                </div>
+                <div className="p-3 text-center bg-slate-50 border-t border-slate-100">
+                  <button onClick={() => setIsNotifOpen(false)} className="text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-brand-dark">Fechar Painel</button>
+                </div>
+              </div>
+            )}
+
+            {currentUser && (
+               <img 
+                src={currentUser.avatar} 
+                className="w-7 h-7 rounded-lg object-cover border border-slate-100 cursor-pointer hover:ring-2 hover:ring-brand-light transition-all" 
+                alt="Profile" 
+                onClick={() => onNavigate('settings')}
+               />
+            )}
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-50">
-          <div className="max-w-7xl mx-auto h-full">
-            {children}
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-brand-gray/30 custom-scrollbar">
+          <div className="max-w-7xl mx-auto">
+             <div className="animate-fade-in">
+                {children}
+             </div>
           </div>
         </main>
+
+        {/* Bottom Nav - Mobile Only */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 h-14 bg-white/90 backdrop-blur-md border-t border-slate-200 flex items-center justify-around px-2 z-50">
+            {bottomNavItems.map(item => {
+                const isActive = currentView === item.id;
+                return (
+                    <button 
+                        key={item.id}
+                        onClick={() => onNavigate(item.id)}
+                        className={`flex flex-col items-center justify-center gap-0.5 flex-1 transition-all ${isActive ? 'text-brand-dark' : 'text-slate-400'}`}
+                    >
+                        <item.icon size={18} className={isActive ? 'text-brand-dark' : ''} />
+                        <span className={`text-[9px] font-bold uppercase tracking-tighter ${isActive ? 'opacity-100' : 'opacity-60'}`}>{item.label}</span>
+                    </button>
+                );
+            })}
+            <button onClick={() => setIsMobileMenuOpen(true)} className="flex flex-col items-center justify-center gap-0.5 flex-1 text-slate-400">
+                <MoreHorizontal size={18} />
+                <span className="text-[9px] font-bold uppercase tracking-tighter opacity-60">Mais</span>
+            </button>
+        </div>
       </div>
     </div>
   );

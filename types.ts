@@ -5,6 +5,10 @@ export enum UserRole {
   CUSTOMER = 'CUSTOMER'
 }
 
+export type PaymentMethod = 'CREDIT_CARD' | 'DEBIT_CARD' | 'PIX' | 'PRESENTIAL';
+
+export type OrderStatus = 'PENDING_PAYMENT' | 'PAID' | 'PREPARING' | 'READY_FOR_PICKUP' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
+
 export interface UserPaymentMethod {
   id: string;
   type: 'CARD';
@@ -23,7 +27,7 @@ export interface User {
   password?: string;
   phone?: string;
   points?: number;
-  membershipId?: string; // ID do plano ativo
+  membershipId?: string;
   membershipStartDate?: string;
   membershipHistory?: {
     planId: string;
@@ -32,27 +36,41 @@ export interface User {
   }[];
   paymentMethods?: UserPaymentMethod[];
   lastVisitDate?: string;
-  healthScore?: number; // 0-100
+  healthScore?: number;
+}
+
+export interface Order {
+  id: string;
+  customerId: string;
+  customerName: string;
+  items: CartItem[];
+  totalAmount: number;
+  status: OrderStatus;
+  createdAt: string;
+  paymentMethod: PaymentMethod;
+  deliveryMethod: 'PICKUP' | 'DELIVERY';
+  trackingCode?: string;
+  trackingHistory?: { status: string; date: string; location?: string }[];
 }
 
 export interface MembershipPlan {
   id: string;
   name: string;
   price: number;
-  servicesPerMonth: number; // 0 para ilimitado
-  includedServiceIds: string[]; // Lista de IDs de serviços permitidos no plano
+  servicesPerMonth: number;
+  includedServiceIds: string[];
   includesBeard: boolean;
   benefits: string[];
   activeMembers: number;
-  utilizationRate?: number; // % de uso dos serviços contratados
+  utilizationRate?: number;
   revenueGenerated?: number;
 }
 
 export interface StrategicStats {
-  mrr: number; // Monthly Recurring Revenue
+  mrr: number;
   churnRate: number;
-  avgUtilization: number; // % de ocupação das cadeiras
-  clv: number; // Customer Lifetime Value (Média)
+  avgUtilization: number;
+  clv: number;
   revenueForecast: number;
 }
 
@@ -61,8 +79,8 @@ export interface Service {
   name: string;
   durationMinutes: number;
   price: number;
-  cost: number; // Custo de insumos/mão de obra por execução
-  margin: number; // Margem de lucro esperada em %
+  cost: number;
+  margin: number;
   description: string;
 }
 
@@ -75,7 +93,7 @@ export interface Appointment {
   startTime: Date;
   status: 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
   isMembershipUsage?: boolean;
-  paymentMethod?: 'APP' | 'PRESENTIAL';
+  paymentMethod?: PaymentMethod;
   paymentStatus?: 'PAID' | 'PENDING';
   isRescheduled?: boolean;
   isLate?: boolean;
@@ -96,6 +114,7 @@ export interface Transaction {
   amount: number;
   type: 'SERVICE' | 'PRODUCT' | 'MEMBERSHIP_FEE';
   description: string;
+  paymentMethod: PaymentMethod;
   barberId?: string;
 }
 
@@ -185,6 +204,6 @@ export interface TechnicalNote {
 export interface BarberAvailabilityException {
   id: string;
   barberId: string;
-  startTime: string; // ISO ou HH:mm
-  date: string; // YYYY-MM-DD
+  startTime: string;
+  date: string;
 }

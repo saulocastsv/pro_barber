@@ -11,6 +11,8 @@ import { ChatAssistant } from './components/ChatAssistant';
 import { AuthScreen } from './components/AuthScreen';
 import { CustomerAppointments } from './components/CustomerAppointments';
 import { CustomerDashboard } from './components/CustomerDashboard';
+import { CustomerOrders } from './components/CustomerOrders';
+import { OrderManagement } from './components/OrderManagement';
 import { Inventory } from './components/Inventory';
 import { MarketingTools } from './components/MarketingTools';
 import { CustomerCRM } from './components/CustomerCRM';
@@ -20,7 +22,7 @@ import { Settings } from './components/Settings';
 import { StrategicGrowth } from './components/StrategicGrowth';
 import { ServicesManagement } from './components/ServicesManagement';
 import { MOCK_USERS, MOCK_APPOINTMENTS, MOCK_QUEUE, MOCK_STATS, SERVICES, LOYALTY_RULES, MOCK_INVENTORY, MOCK_TRANSACTIONS, MOCK_SHOP_SETTINGS, MOCK_AUTOMATIONS, MOCK_MEMBERSHIP_PLANS, MOCK_NOTES } from './constants';
-import { UserRole, User, Appointment, InventoryItem, Transaction, ShopSettings, CartItem, LoyaltyAutomation, Service, MembershipPlan, TechnicalNote, BarberAvailabilityException } from './types';
+import { UserRole, User, Appointment, InventoryItem, Transaction, ShopSettings, CartItem, LoyaltyAutomation, Service, MembershipPlan, TechnicalNote, BarberAvailabilityException, Order, OrderStatus } from './types';
 
 function App() {
   // --- GLOBAL STATE ---
@@ -33,6 +35,7 @@ function App() {
   const [appointments, setAppointments] = useState<Appointment[]>(MOCK_APPOINTMENTS);
   const [inventory, setInventory] = useState<InventoryItem[]>(MOCK_INVENTORY);
   const [transactions, setTransactions] = useState<Transaction[]>(MOCK_TRANSACTIONS);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [shopSettings, setShopSettings] = useState<ShopSettings>(MOCK_SHOP_SETTINGS);
   const [services, setServices] = useState<Service[]>(SERVICES);
   const [membershipPlans, setMembershipPlans] = useState<MembershipPlan[]>(MOCK_MEMBERSHIP_PLANS);
@@ -43,7 +46,12 @@ function App() {
   const [automations, setAutomations] = useState<LoyaltyAutomation[]>(MOCK_AUTOMATIONS);
 
   // Booking Flow State
-  const [bookingInitialData, setBookingInitialData] = useState<{serviceIds: string[], barberId: string} | null>(null);
+  const [bookingInitialData, setBookingInitialData] = useState<{
+    serviceIds?: string[], 
+    barberId?: string,
+    customerId?: string,
+    customerName?: string
+  } | null>(null);
 
   // --- HANDLERS ---
 
@@ -83,29 +91,12 @@ function App() {
       paymentStatus: apptData.paymentStatus
     };
     setAppointments(prev => [...prev, newAppt]);
+    setBookingInitialData(null);
     return true;
   };
 
-  const handleSaveTechnicalNote = (note: Partial<TechnicalNote>) => {
-      const fullNote: TechnicalNote = {
-          id: `note_${Date.now()}`,
-          customerId: note.customerId || '',
-          barberId: currentUser?.id || 'admin',
-          note: note.note || '',
-          tags: note.tags || [],
-          date: new Date().toISOString()
-      };
-      setTechnicalNotes(prev => [fullNote, ...prev]);
-  };
-
-  const handleBlockTime = (barberId: string, date: string, time: string) => {
-      const newEx: BarberAvailabilityException = {
-          id: `ex_${Date.now()}`,
-          barberId,
-          date,
-          startTime: time
-      };
-      setAvailabilityExceptions(prev => [...prev, newEx]);
+  const handleUpdateOrderStatus = (orderId: string, status: OrderStatus, trackingCode?: string) => {
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status, trackingCode: trackingCode || o.trackingCode } : o));
   };
 
   const handleCompleteAppointment = (appointmentId: string) => {
@@ -117,7 +108,6 @@ function App() {
 
       const pointsToAward = Math.floor(service.price * LOYALTY_RULES.POINTS_PER_CURRENCY);
       
-      // Update User Points
       setUsers(prevUsers => prevUsers.map(user => {
           if (user.id === appt.customerId) {
               return { ...user, points: (user.points || 0) + pointsToAward };
@@ -125,17 +115,16 @@ function App() {
           return user;
       }));
 
-      // Update Appointment
       setAppointments(prev => prev.map(a => a.id === appointmentId ? { ...a, status: 'COMPLETED' } : a));
 
-      // Financial Transaction
       const newTransaction: Transaction = {
           id: `t_${Date.now()}`,
           date: new Date().toISOString().split('T')[0],
           amount: Number(service.price),
           type: 'SERVICE',
           description: `Atendimento: ${service.name} (${appt.customerName})`,
-          barberId: appt.barberId
+          barberId: appt.barberId,
+          paymentMethod: appt.paymentMethod || 'PRESENTIAL'
       };
       setTransactions(prev => [newTransaction, ...prev]);
   };
@@ -158,7 +147,10 @@ function App() {
                 onNoShow={(id) => setAppointments(prev => prev.map(a => a.id === id ? {...a, status: 'CANCELLED'} : a))}
                 services={services}
                 exceptions={availabilityExceptions}
-                onBlockTime={handleBlockTime}
+                onBlockTime={(bId, date, time) => {
+                    const newEx: BarberAvailabilityException = { id: `ex_${Date.now()}`, barberId: bId, date, startTime: time };
+                    setAvailabilityExceptions(prev => [...prev, newEx]);
+                }}
             />;
         }
         if (currentUser?.role === UserRole.CUSTOMER) {
@@ -176,17 +168,66 @@ function App() {
         return <Team barbers={barbers} setUsers={setUsers} />;
       
       case 'crm':
-        return <CustomerCRM services={services} notes={technicalNotes} onSaveNote={handleSaveTechnicalNote} customers={users.filter(u => u.role === UserRole.CUSTOMER)} appointments={appointments} />;
+        return <CustomerCRM 
+          services={services} 
+          notes={technicalNotes} 
+          onSaveNote={(note) => {
+              const fullNote: TechnicalNote = { id: `note_${Date.now()}`, customerId: note.customerId || '', barberId: currentUser?.id || 'admin', note: note.note || '', tags: note.tags || [], date: new Date().toISOString() };
+              setTechnicalNotes(prev => [fullNote, ...prev]);
+          }} 
+          customers={users.filter(u => u.role === UserRole.CUSTOMER)} 
+          appointments={appointments} 
+          onScheduleReturn={(id, name) => {
+            setBookingInitialData({ customerId: id, customerName: name });
+            setCurrentView('booking');
+          }}
+        />;
 
       case 'booking':
-        return <BookingFlow currentUser={currentUser} initialData={bookingInitialData} services={services} onBook={handleAddAppointment} shopSettings={shopSettings} />;
+        return (
+          <BookingFlow 
+            currentUser={currentUser} 
+            initialData={bookingInitialData} 
+            services={services} 
+            onBook={handleAddAppointment} 
+            shopSettings={shopSettings} 
+            allAppointments={appointments}
+            availabilityExceptions={availabilityExceptions}
+          />
+        );
 
       case 'appointments':
         return currentUser ? <CustomerAppointments currentUser={currentUser} appointments={appointments} onRebook={(a) => { setBookingInitialData({serviceIds: [a.serviceId], barberId: a.barberId}); setCurrentView('booking'); }} onCancel={(id) => setAppointments(prev => prev.map(a => a.id === id ? {...a, status: 'CANCELLED'} : a))} onNavigate={handleNavigate} services={services} /> : null;
 
+      case 'orders':
+        return currentUser ? <CustomerOrders orders={orders.filter(o => o.customerId === currentUser.id)} onNavigate={handleNavigate} onRepeatOrder={(order) => { handleNavigate('shop'); }} /> : null;
+
+      case 'order_management':
+        return <OrderManagement orders={orders} users={users} onUpdateStatus={handleUpdateOrderStatus} onNavigate={handleNavigate} />;
+
       case 'shop':
         return currentUser ? <Shop currentUser={currentUser} inventory={inventory} onPurchase={(cart, total, used, disc) => {
-            const newT: Transaction = { id: `tr_${Date.now()}`, date: new Date().toISOString().split('T')[0], amount: total, type: 'PRODUCT', description: `Venda Loja (${cart.length} itens)` };
+            const newOrder: Order = {
+                id: `ORD-${Date.now()}`,
+                customerId: currentUser.id,
+                customerName: currentUser.name,
+                items: cart,
+                totalAmount: total,
+                status: 'PAID',
+                createdAt: new Date().toISOString(),
+                paymentMethod: 'CREDIT_CARD',
+                deliveryMethod: total > 200 ? 'DELIVERY' : 'PICKUP'
+            };
+            setOrders(prev => [newOrder, ...prev]);
+            
+            const newT: Transaction = { 
+              id: `tr_${Date.now()}`, 
+              date: new Date().toISOString().split('T')[0], 
+              amount: total, 
+              type: 'PRODUCT', 
+              description: `Venda Loja (${cart.length} itens)`,
+              paymentMethod: 'CREDIT_CARD'
+            };
             setTransactions(prev => [newT, ...prev]);
             return true;
         }} /> : null;
@@ -217,7 +258,7 @@ function App() {
   return (
     <Layout currentUser={currentUser} currentView={currentView} onNavigate={handleNavigate} onLogout={handleLogout}>
       {renderContent()}
-      <ChatAssistant />
+      <ChatAssistant currentUser={currentUser} />
     </Layout>
   );
 }

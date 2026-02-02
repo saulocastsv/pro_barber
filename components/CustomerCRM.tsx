@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Service, User, TechnicalNote, Appointment } from '../types';
-import { Search, FileText, History, ChevronLeft, Crown, Smartphone, CreditCard, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Search, FileText, History, ChevronLeft, Crown, Smartphone, CreditCard, RefreshCw, AlertTriangle, Calendar, Star } from 'lucide-react';
 
 interface CustomerCRMProps {
   services: Service[];
@@ -9,9 +9,10 @@ interface CustomerCRMProps {
   onSaveNote: (note: Partial<TechnicalNote>) => void;
   customers: User[];
   appointments: Appointment[];
+  onScheduleReturn: (customerId: string, customerName: string) => void;
 }
 
-export const CustomerCRM: React.FC<CustomerCRMProps> = ({ services, notes, onSaveNote, customers, appointments }) => {
+export const CustomerCRM: React.FC<CustomerCRMProps> = ({ services, notes, onSaveNote, customers, appointments, onScheduleReturn }) => {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [newNote, setNewNote] = useState('');
@@ -24,7 +25,11 @@ export const CustomerCRM: React.FC<CustomerCRMProps> = ({ services, notes, onSav
         const service = services.find(s => s.id === curr.serviceId);
         return acc + (service?.price || 0);
     }, 0);
-    return { totalVisits: completedAppts.length, ltv, history: sortedHistory };
+    
+    // VIP Logic: Visited more than 5 times or spent more than 500
+    const isVIP = completedAppts.length >= 5 || ltv >= 500;
+    
+    return { totalVisits: completedAppts.length, ltv, history: sortedHistory, isVIP };
   };
 
   const processedCustomers = customers
@@ -55,7 +60,10 @@ export const CustomerCRM: React.FC<CustomerCRMProps> = ({ services, notes, onSav
                     <div key={customer.id} onClick={() => setSelectedCustomerId(customer.id)} className={`p-4 border-b border-slate-50 cursor-pointer transition-all hover:bg-slate-50 flex items-center gap-3 ${selectedCustomerId === customer.id ? 'bg-blue-50 border-blue-100' : ''}`}>
                         <img src={customer.avatar} className="w-12 h-12 rounded-full object-cover border" alt={customer.name} />
                         <div className="flex-1 min-w-0">
-                            <h4 className="font-bold text-sm truncate">{customer.name}</h4>
+                            <div className="flex items-center gap-1.5">
+                                <h4 className="font-bold text-sm truncate">{customer.name}</h4>
+                                {customer.isVIP && <Star size={14} className="text-amber-500 fill-amber-500 flex-shrink-0" />}
+                            </div>
                             <div className="flex gap-1 mt-1">
                                 {customer.membershipId && <Crown size={12} className="text-amber-500" />}
                                 <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tighter">{customer.membershipId ? 'Assinante' : 'Avulso'}</p>
@@ -72,7 +80,14 @@ export const CustomerCRM: React.FC<CustomerCRMProps> = ({ services, notes, onSav
                     <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div className="flex items-center gap-4">
                             <button onClick={() => setSelectedCustomerId(null)} className="lg:hidden p-2 text-slate-500 hover:bg-slate-200 rounded-full mr-1"><ChevronLeft size={24} /></button>
-                            <img src={selectedCustomer.avatar} className="w-16 h-16 rounded-2xl shadow-md object-cover border-4 border-white" alt="Avatar" />
+                            <div className="relative">
+                                <img src={selectedCustomer.avatar} className="w-16 h-16 rounded-2xl shadow-md object-cover border-4 border-white" alt="Avatar" />
+                                {selectedCustomer.isVIP && (
+                                    <div className="absolute -top-2 -right-2 bg-amber-500 text-white p-1 rounded-full border-2 border-white shadow-sm">
+                                        <Star size={12} fill="currentColor" />
+                                    </div>
+                                )}
+                            </div>
                             <div>
                                 <h2 className="text-xl md:text-2xl font-bold text-slate-800">{selectedCustomer.name}</h2>
                                 <div className="flex flex-wrap gap-2 mt-1">
@@ -81,18 +96,31 @@ export const CustomerCRM: React.FC<CustomerCRMProps> = ({ services, notes, onSav
                                             <Crown size={10}/> Barvo Club Premium
                                         </span>
                                     )}
+                                    {selectedCustomer.isVIP && (
+                                        <span className="bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                                            Cliente VIP
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         </div>
-                        <div className="flex gap-4 bg-white p-3 rounded-xl border shadow-sm">
-                            <div className="text-center px-2">
-                                <p className="text-[10px] text-slate-400 font-bold uppercase">LTV</p>
-                                <p className="text-lg font-bold text-slate-800">R$ {selectedCustomer.ltv}</p>
+                        <div className="flex gap-4 items-center">
+                            <div className="flex gap-4 bg-white p-3 rounded-xl border shadow-sm">
+                                <div className="text-center px-2">
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase">LTV</p>
+                                    <p className="text-lg font-bold text-slate-800">R$ {selectedCustomer.ltv.toFixed(2)}</p>
+                                </div>
+                                <div className="text-center px-2">
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase">Visitas</p>
+                                    <p className="text-lg font-bold text-slate-800">{selectedCustomer.totalVisits}</p>
+                                </div>
                             </div>
-                            <div className="text-center px-2">
-                                <p className="text-[10px] text-slate-400 font-bold uppercase">Visitas</p>
-                                <p className="text-lg font-bold text-slate-800">{selectedCustomer.totalVisits}</p>
-                            </div>
+                            <button 
+                                onClick={() => onScheduleReturn(selectedCustomer.id, selectedCustomer.name)}
+                                className="bg-brand-dark text-white px-5 py-3 rounded-xl font-bold hover:bg-black transition-all flex items-center gap-2 shadow-lg shadow-brand-dark/20 text-sm"
+                            >
+                                <Calendar size={18} /> Agendar Retorno
+                            </button>
                         </div>
                     </div>
 
@@ -114,20 +142,22 @@ export const CustomerCRM: React.FC<CustomerCRMProps> = ({ services, notes, onSav
                         </div>
 
                         <div className="pt-6 border-t border-slate-100">
-                             <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-4"><History size={18} className="text-purple-500" /> Histórico de Visitas</h3>
+                             <div className="flex justify-between items-center mb-4">
+                                <h3 className="font-bold text-slate-800 flex items-center gap-2"><History size={18} className="text-purple-500" /> Histórico de Visitas</h3>
+                             </div>
                              <div className="space-y-3">
                                  {selectedCustomer.history.map(appt => (
                                      <div key={appt.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-xl border border-slate-100">
                                          <div>
                                              <div className="flex items-center gap-2 mb-1">
                                                 <p className="text-sm font-bold text-slate-800">{services.find(s=>s.id===appt.serviceId)?.name}</p>
-                                                {appt.paymentMethod === 'APP' ? <Smartphone size={12} className="text-emerald-500" /> : <CreditCard size={12} className="text-blue-500" />}
+                                                {appt.paymentMethod !== undefined && appt.paymentMethod !== 'PRESENTIAL' ? <Smartphone size={12} className="text-emerald-500" /> : <CreditCard size={12} className="text-blue-500" />}
                                              </div>
                                              <p className="text-[10px] text-slate-400">{new Date(appt.startTime).toLocaleDateString('pt-BR')} às {new Date(appt.startTime).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</p>
                                          </div>
                                          <div className="flex flex-col items-end gap-1">
                                              <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${appt.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>{appt.status}</span>
-                                             {appt.paymentMethod === 'APP' && <span className="text-[8px] font-bold text-emerald-600 uppercase">Pago via App</span>}
+                                             {appt.paymentMethod !== undefined && appt.paymentMethod !== 'PRESENTIAL' && <span className="text-[8px] font-bold text-emerald-600 uppercase">Pago via App</span>}
                                          </div>
                                      </div>
                                  ))}

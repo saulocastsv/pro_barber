@@ -128,13 +128,13 @@ const lastMonth = new Date(today);
 lastMonth.setMonth(lastMonth.getMonth() - 1);
 
 export const MOCK_APPOINTMENTS: Appointment[] = [
-  { id: 'a1', barberId: 'u2', customerId: 'c1', customerName: 'Roberto Silva', serviceId: 's1', startTime: setTime(today, 10, 0), status: 'COMPLETED' },
-  { id: 'a2', barberId: 'u2', customerId: 'c2', customerName: 'Lucas Moura', serviceId: 's3', startTime: setTime(today, 11, 0), status: 'CONFIRMED' },
-  { id: 'a3', barberId: 'u3', customerId: 'c3', customerName: 'André Santos', serviceId: 's2', startTime: setTime(today, 10, 30), status: 'CONFIRMED' },
-  { id: 'a4', barberId: 'u3', customerId: 'c4', customerName: 'Felipe Neto', serviceId: 's1', startTime: setTime(today, 14, 0), status: 'CONFIRMED' },
-  { id: 'a5', barberId: 'u2', customerId: 'u4', customerName: 'Cliente Teste', serviceId: 's3', startTime: setTime(tomorrow, 15, 30), status: 'CONFIRMED' },
-  { id: 'a6', barberId: 'u3', customerId: 'u4', customerName: 'Cliente Teste', serviceId: 's1', startTime: setTime(yesterday, 18, 0), status: 'COMPLETED' },
-  { id: 'a7', barberId: 'u2', customerId: 'u4', customerName: 'Cliente Teste', serviceId: 's2', startTime: setTime(lastMonth, 10, 0), status: 'COMPLETED' },
+  { id: 'a1', barberId: 'u2', customerId: 'c1', customerName: 'Roberto Silva', serviceId: 's1', startTime: setTime(today, 10, 0), status: 'COMPLETED', paymentMethod: 'CREDIT_CARD' },
+  { id: 'a2', barberId: 'u2', customerId: 'c2', customerName: 'Lucas Moura', serviceId: 's3', startTime: setTime(today, 11, 0), status: 'CONFIRMED', paymentMethod: 'PIX' },
+  { id: 'a3', barberId: 'u3', customerId: 'c3', customerName: 'André Santos', serviceId: 's2', startTime: setTime(today, 10, 30), status: 'CONFIRMED', paymentMethod: 'PRESENTIAL' },
+  { id: 'a4', barberId: 'u3', customerId: 'c4', customerName: 'Felipe Neto', serviceId: 's1', startTime: setTime(today, 14, 0), status: 'CONFIRMED', paymentMethod: 'DEBIT_CARD' },
+  { id: 'a5', barberId: 'u2', customerId: 'u4', customerName: 'Cliente Teste', serviceId: 's3', startTime: setTime(tomorrow, 15, 30), status: 'CONFIRMED', paymentMethod: 'CREDIT_CARD' },
+  { id: 'a6', barberId: 'u3', customerId: 'u4', customerName: 'Cliente Teste', serviceId: 's1', startTime: setTime(yesterday, 18, 0), status: 'COMPLETED', paymentMethod: 'PIX' },
+  { id: 'a7', barberId: 'u2', customerId: 'u4', customerName: 'Cliente Teste', serviceId: 's2', startTime: setTime(lastMonth, 10, 0), status: 'COMPLETED', paymentMethod: 'PRESENTIAL' },
 ];
 
 export const MOCK_QUEUE: QueueItem[] = [
@@ -143,11 +143,13 @@ export const MOCK_QUEUE: QueueItem[] = [
 ];
 
 export const MOCK_TRANSACTIONS: Transaction[] = [
-  { id: 't1', date: '2023-10-25', amount: 80, type: 'SERVICE', description: 'Combo Corte + Barba', barberId: 'u2' },
-  { id: 't2', date: '2023-10-25', amount: 50, type: 'SERVICE', description: 'Corte Simples', barberId: 'u3' },
-  { id: 't3', date: '2023-10-25', amount: 45, type: 'PRODUCT', description: 'Pomada Matte' },
-  { id: 't4', date: '2023-10-24', amount: 120, type: 'SERVICE', description: 'Corte + Pigmentação', barberId: 'u2' },
-  { id: 't5', date: '2023-10-24', amount: 40, type: 'SERVICE', description: 'Barba', barberId: 'u3' },
+  { id: 't1', date: '2023-10-25', amount: 80, type: 'SERVICE', description: 'Combo Corte + Barba', barberId: 'u2', paymentMethod: 'CREDIT_CARD' },
+  { id: 't2', date: '2023-10-25', amount: 50, type: 'SERVICE', description: 'Corte Simples', barberId: 'u3', paymentMethod: 'PIX' },
+  { id: 't3', date: '2023-10-25', amount: 45, type: 'PRODUCT', description: 'Pomada Matte', paymentMethod: 'DEBIT_CARD' },
+  { id: 't4', date: '2023-10-24', amount: 120, type: 'SERVICE', description: 'Corte + Pigmentação', barberId: 'u2', paymentMethod: 'PRESENTIAL' },
+  { id: 't5', date: '2023-10-24', amount: 40, type: 'SERVICE', description: 'Barba', barberId: 'u3', paymentMethod: 'CREDIT_CARD' },
+  { id: 't6', date: '2023-10-23', amount: 200, type: 'SERVICE', description: 'Dia do Noivo', barberId: 'u2', paymentMethod: 'PIX' },
+  { id: 't7', date: '2023-10-23', amount: 90, type: 'SERVICE', description: 'Combo VIP', barberId: 'u3', paymentMethod: 'DEBIT_CARD' },
 ];
 
 export const MOCK_STATS: BarbershopStats = {

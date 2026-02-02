@@ -1,55 +1,90 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { MOCK_USERS, MOCK_APPOINTMENTS } from '../constants';
-import { Scissors, User as UserIcon, Calendar as CalendarIcon, Check, ChevronLeft, ChevronRight, AlertCircle, Clock, Smartphone, Loader2, MessageCircle, CreditCard, Wallet, Plus, Landmark, ShieldCheck, Globe, Info } from 'lucide-react';
-import { User, Service, Appointment, ShopSettings, UserPaymentMethod } from '../types';
+import { MOCK_USERS } from '../constants';
+import { 
+  Scissors, Check, ChevronLeft, ChevronRight, AlertCircle, Clock, 
+  Loader2, MessageCircle, CreditCard, Wallet, Copy, Timer, Zap, 
+  ArrowRight, Smartphone, CheckCircle 
+} from 'lucide-react';
+import { User, UserRole, Service, Appointment, ShopSettings, PaymentMethod, BarberAvailabilityException } from '../types';
 
 interface BookingFlowProps {
   currentUser: User | null;
-  initialData: { serviceIds: string[]; barberId: string } | null;
+  initialData: {
+    serviceIds?: string[];
+    barberId?: string;
+    customerId?: string;
+    customerName?: string;
+  } | null;
   services: Service[];
-  onBook: (appt: Partial<Appointment>) => void;
+  onBook: (appt: Partial<Appointment>) => boolean;
   shopSettings: ShopSettings;
+  allAppointments: Appointment[];
+  availabilityExceptions: BarberAvailabilityException[];
 }
 
 const Toast: React.FC<{ message: string; type: 'success' | 'error'; onClose: () => void }> = ({ message, type, onClose }) => {
     return (
-        <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-2xl animate-fade-in border transition-all duration-300 ${
-            type === 'success' ? 'bg-emerald-600 border-emerald-500 text-white shadow-emerald-900/20' : 'bg-white border-red-100 text-red-600 shadow-red-900/10'
+        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] flex items-center gap-2 px-4 py-3 rounded-lg shadow-xl animate-fade-in border ${
+            type === 'success' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-white border-red-100 text-red-600'
         }`}>
-            {type === 'success' ? <Check size={20} className="text-white" /> : <AlertCircle size={20} />}
-            <span className="font-medium text-sm md:text-base">{message}</span>
-            <button onClick={onClose} className="ml-2 opacity-70 hover:opacity-100 p-1">×</button>
+            {type === 'success' ? <Check size={16} className="text-white" /> : <AlertCircle size={16} />}
+            <span className="font-semibold text-xs">{message}</span>
+            <button onClick={onClose} className="ml-2 text-sm opacity-70">×</button>
         </div>
     );
 };
 
-export const BookingFlow: React.FC<BookingFlowProps> = ({ currentUser, initialData, services, onBook, shopSettings }) => {
+export const BookingFlow: React.FC<BookingFlowProps> = ({ 
+  currentUser, 
+  initialData, 
+  services, 
+  onBook, 
+  shopSettings,
+  allAppointments,
+  availabilityExceptions 
+}) => {
   const [step, setStep] = useState(1);
   const [selection, setSelection] = useState({
     serviceIds: [] as string[],
     barberId: '',
     date: new Date().toISOString().split('T')[0],
     time: '',
-    paymentMethod: 'PRESENTIAL' as 'APP' | 'PRESENTIAL',
-    selectedCardId: ''
+    paymentMethod: 'PRESENTIAL' as PaymentMethod,
+    selectedCardId: currentUser?.paymentMethods?.find(m => m.isDefault)?.id || currentUser?.paymentMethods?.[0]?.id || ''
   });
   const [isProcessing, setIsProcessing] = useState(false);
   const [guestInfo, setGuestInfo] = useState({ name: '', phone: '' });
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  
+  const [pixMode, setPixMode] = useState<'IDLE' | 'GENERATING' | 'DISPLAY'>('IDLE');
+  const [pixTimer, setPixTimer] = useState(300);
 
   useEffect(() => {
       if (initialData) {
           setSelection(prev => ({
               ...prev,
-              serviceIds: initialData.serviceIds,
-              barberId: initialData.barberId
+              serviceIds: initialData.serviceIds || [],
+              barberId: initialData.barberId || ''
           }));
+          if (initialData.customerName) {
+              setGuestInfo(prev => ({ ...prev, name: initialData.customerName || '' }));
+          }
       }
-      if (currentUser?.paymentMethods?.length) {
-          setSelection(prev => ({ ...prev, selectedCardId: currentUser.paymentMethods?.find(m => m.isDefault)?.id || currentUser.paymentMethods![0].id }));
-      }
-  }, [initialData, currentUser]);
+  }, [initialData]);
+
+  useEffect(() => {
+    if (pixMode === 'DISPLAY' && pixTimer > 0) {
+      const timer = setInterval(() => setPixTimer(t => t - 1), 1000);
+      return () => clearInterval(timer);
+    }
+  }, [pixMode, pixTimer]);
+
+  const formatTimer = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const barbers = MOCK_USERS.filter(u => u.role === 'BARBER');
 
@@ -107,11 +142,19 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ currentUser, initialDa
       const selectedEnd = new Date(selectedStart);
       selectedEnd.setMinutes(selectedEnd.getMinutes() + totalDuration);
 
+      // 1. Validação de horário passado
       if (selection.date === new Date().toISOString().split('T')[0]) {
         if (selectedStart < new Date()) return false;
       }
 
-      const conflicts = MOCK_APPOINTMENTS.filter(apt => {
+      // 2. Validação de horário de fechamento da loja
+      const [endH, endM] = shopSettings.openingHours.end.split(':').map(Number);
+      const shopEnd = new Date(selection.date);
+      shopEnd.setHours(endH, endM, 0, 0);
+      if (selectedEnd > shopEnd) return false;
+
+      // 3. Validação de conflitos com outros agendamentos
+      const conflicts = allAppointments.filter(apt => {
           if (apt.barberId !== selection.barberId) return false;
           if (apt.status === 'CANCELLED') return false;
           const aptStart = new Date(apt.startTime);
@@ -119,24 +162,70 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ currentUser, initialDa
           const aptDuration = aptService ? aptService.durationMinutes : 30;
           const aptEnd = new Date(aptStart);
           aptEnd.setMinutes(aptEnd.getMinutes() + aptDuration);
+          
           return (selectedStart < aptEnd && selectedEnd > aptStart);
       });
-      return conflicts.length === 0;
+      if (conflicts.length > 0) return false;
+
+      // 4. Validação de bloqueios manuais
+      const isBlocked = availabilityExceptions.some(ex => {
+          if (ex.barberId !== selection.barberId || ex.date !== selection.date) return false;
+          const [exH, exM] = ex.startTime.split(':').map(Number);
+          const blockStart = new Date(selection.date);
+          blockStart.setHours(exH, exM, 0, 0);
+          const blockEnd = new Date(blockStart);
+          blockEnd.setMinutes(blockEnd.getMinutes() + 30); 
+
+          return (selectedStart < blockEnd && selectedEnd > blockStart);
+      });
+
+      return !isBlocked;
   };
 
+  // Efeito para invalidar o horário caso a duração mude e gere conflito
+  useEffect(() => {
+    if (selection.time && !isSlotAvailable(selection.time)) {
+        setSelection(prev => ({ ...prev, time: '' }));
+        if (step > 4) {
+            setStep(4);
+            showToast('O horário não comporta mais a duração total dos serviços.', 'error');
+        }
+    }
+  }, [selection.serviceIds, totalDuration]);
+
   const handleNextStep = () => {
+      if (step === 4 && selection.time && !isSlotAvailable(selection.time)) {
+          showToast('Conflito de agenda. Escolha outro horário.', 'error');
+          return;
+      }
+
+      if (step === 5 && selection.paymentMethod === 'PIX' && pixMode === 'IDLE') {
+        setPixMode('GENERATING');
+        setTimeout(() => setPixMode('DISPLAY'), 1500);
+        return;
+      }
       setIsProcessing(true);
       setTimeout(() => {
           setStep(s => s + 1);
           setIsProcessing(false);
-      }, 400);
+      }, 300);
   };
 
   const confirmBooking = () => {
-      if (!currentUser && (!guestInfo.name || !guestInfo.phone)) {
-          showToast('Por favor, preencha seus dados de contato.', 'error');
+      const finalCustomerId = initialData?.customerId || currentUser?.id || 'guest';
+      const finalCustomerName = currentUser?.id === finalCustomerId ? currentUser.name : (guestInfo.name || 'Cliente');
+
+      if (finalCustomerId === 'guest' && !guestInfo.name) {
+          showToast('Nome do cliente é obrigatório.', 'error');
           return;
       }
+
+      if (!isSlotAvailable(selection.time)) {
+          showToast('Este horário acabou de ser ocupado. Por favor, mude o horário.', 'error');
+          setStep(4);
+          return;
+      }
+
       setIsProcessing(true);
       const [h, m] = selection.time.split(':').map(Number);
       const startTime = new Date(selection.date);
@@ -147,105 +236,105 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ currentUser, initialDa
             barberId: selection.barberId,
             serviceId: sId,
             startTime,
-            customerName: currentUser?.name || guestInfo.name,
-            customerId: currentUser?.id || 'guest',
+            customerName: finalCustomerName,
+            customerId: finalCustomerId,
             paymentMethod: selection.paymentMethod,
-            paymentStatus: selection.paymentMethod === 'APP' ? 'PAID' : 'PENDING'
+            paymentStatus: selection.paymentMethod !== 'PRESENTIAL' ? 'PAID' : 'PENDING'
           });
       });
 
       setTimeout(() => {
           setStep(7);
           setIsProcessing(false);
-          showToast('Agendamento realizado com sucesso!', 'success');
-      }, 1500);
+          showToast('Horário Confirmado!', 'success');
+      }, 1000);
   };
 
   const getWhatsAppLink = () => {
-      const name = currentUser?.name || guestInfo.name;
+      const finalCustomerName = initialData?.customerName || currentUser?.name || guestInfo.name;
       const servicesNames = selectedServices.map(s => s.name).join(', ');
-      const message = `Olá! Sou o ${name}. Confirmei meu agendamento na Barvo! ✅\n\n✂️ Serviços: ${servicesNames}\n💈 Profissional: ${selectedBarber?.name}\n📅 Data: ${selection.date} às ${selection.time}\n💰 Pagamento: ${selection.paymentMethod === 'APP' ? 'Pago via App' : 'Presencial'}\n\nAté lá!`;
+      const methodLabel = selection.paymentMethod === 'PIX' ? 'Pix (Pago)' : selection.paymentMethod === 'PRESENTIAL' ? 'Pagamento Local' : 'Pago via App';
+      
+      const [year, month, day] = selection.date.split('-');
+      const formattedDate = `${day}/${month}/${year}`;
+
+      const message = `Olá! Sou o ${finalCustomerName}. Acabei de confirmar meu agendamento na Barvo! 💈✂️\n\n✅ *Detalhes:*\n\n✂️ *Serviço:* ${servicesNames}\n💈 *Barbeiro:* ${selectedBarber?.name}\n📅 *Data:* ${formattedDate} às ${selection.time}\n💰 *Status:* ${methodLabel}\n💵 *Total:* R$ ${totalPrice.toFixed(2)}\n\n📌 *Lembrete:* Fique atento! Enviaremos uma confirmação para você no dia anterior ao seu serviço para garantir que seu horário esteja ok. 😉`;
+      
       return `https://wa.me/${shopSettings.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
   };
 
   return (
-    <div className={`max-w-xl mx-auto bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden min-h-[650px] flex flex-col transition-all duration-500 relative ${step === 5 ? 'max-w-6xl' : ''}`}>
+    <div className={`max-w-md mx-auto bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden min-h-[550px] flex flex-col transition-all duration-300 relative ${step === 5 ? 'max-w-5xl' : ''}`}>
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-      {step !== 5 && (
-          <div className="bg-brand-dark p-8 text-white text-center shadow-lg z-10 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-brand-light/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
-            <h1 className="text-2xl font-black mb-4 tracking-tighter uppercase italic">Barvo Reserva</h1>
-            <div className="flex justify-center gap-2">
+      {step !== 5 && step !== 7 && (
+          <div className="bg-brand-dark py-8 px-8 text-white text-center relative overflow-hidden">
+            <h1 className="text-xl font-black tracking-tighter uppercase italic mb-4">Novo Agendamento</h1>
+            <div className="flex justify-center gap-1.5">
                 {[1, 2, 3, 4, 5, 6].map(i => (
                     <div 
                       key={i} 
-                      className={`h-1.5 rounded-full transition-all duration-500 ease-out ${step >= i ? 'bg-brand-light w-10' : 'bg-white/10 w-4'}`} 
+                      className={`h-1.5 rounded-full transition-all duration-300 ${step >= i ? 'bg-brand-light w-8' : 'bg-white/10 w-2'}`} 
                     />
                 ))}
             </div>
           </div>
       )}
 
-      <div className={`p-8 flex-1 flex flex-col relative overflow-hidden ${step === 5 ? 'p-0' : 'bg-slate-50/30'}`}>
+      <div className={`p-6 md:p-8 flex-1 flex flex-col relative overflow-hidden ${step === 5 ? 'p-0' : 'bg-slate-50/20'}`}>
         
         {step === 1 && (
-            <div className="space-y-6 animate-fade-in flex-1 flex flex-col">
-                <div className="flex justify-between items-center">
-                    <h2 className="text-xl font-bold text-brand-dark flex items-center gap-2">
-                        <Scissors size={22} className="text-brand-light" /> Selecione o que deseja
-                    </h2>
+            <div className="space-y-4 animate-fade-in flex-1 flex flex-col">
+                <div className="flex items-center justify-between mb-2">
+                    <h2 className="text-lg font-black text-brand-dark uppercase tracking-tighter">Serviços</h2>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{selectedServices.length} selecionado</span>
                 </div>
-                <div className="grid gap-3 pb-24 overflow-y-auto custom-scrollbar pr-1">
+                <div className="grid gap-2 pb-24 overflow-y-auto custom-scrollbar">
                     {services.map(service => {
                         const isSelected = selection.serviceIds.includes(service.id);
                         return (
                             <button
                                 key={service.id}
                                 onClick={() => toggleService(service.id)}
-                                className={`w-full text-left p-5 border-2 rounded-[1.5rem] transition-all duration-300 group relative overflow-hidden ${isSelected ? 'border-brand-dark bg-white shadow-xl scale-[1.02]' : 'border-white bg-white/50 hover:border-slate-200'}`}
+                                className={`w-full text-left p-4 md:p-5 border-2 rounded-2xl transition-all ${isSelected ? 'border-brand-dark bg-white shadow-md ring-4 ring-brand-dark/5' : 'border-slate-100 bg-white'}`}
                             >
-                                <div className="flex justify-between items-center relative z-10">
+                                <div className="flex justify-between items-center">
                                     <div className="flex items-center gap-4">
-                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isSelected ? 'bg-brand-dark text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'}`}>
-                                            {isSelected ? <Check size={20} strokeWidth={3} /> : <Plus size={20} />}
+                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${isSelected ? 'bg-brand-dark text-white' : 'bg-slate-100 text-slate-400'}`}>
+                                            {isSelected ? <Check size={20} strokeWidth={4} /> : <Scissors size={20} />}
                                         </div>
                                         <div>
-                                            <span className={`block font-black text-lg ${isSelected ? 'text-brand-dark' : 'text-slate-700'}`}>{service.name}</span>
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1"><Clock size={10}/> {service.durationMinutes} min</span>
+                                            <span className={`block font-black text-sm md:text-base ${isSelected ? 'text-brand-dark' : 'text-slate-800'}`}>{service.name}</span>
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{service.durationMinutes} min</span>
                                         </div>
                                     </div>
-                                    <div className={`text-xl font-black ${isSelected ? 'text-brand-dark' : 'text-slate-900'}`}>R$ {Number(service.price).toFixed(0)}</div>
+                                    <div className={`text-base font-black ${isSelected ? 'text-brand-dark' : 'text-slate-900'}`}>R$ {Number(service.price).toFixed(0)}</div>
                                 </div>
                             </button>
                         );
                     })}
                 </div>
-                <div className="absolute bottom-0 left-0 right-0 p-8 bg-white/80 backdrop-blur-md border-t border-slate-100">
-                    <div className="flex justify-between items-center">
-                        <div className="text-2xl font-black text-brand-dark">R$ {totalPrice.toFixed(2)}</div>
-                        <button onClick={handleNextStep} disabled={selection.serviceIds.length === 0} className="bg-brand-dark text-white px-10 py-4 rounded-2xl font-black shadow-xl hover:bg-black disabled:opacity-30 transition-all flex items-center gap-2">
-                            Próximo <ChevronRight size={20} />
-                        </button>
+                <div className="absolute bottom-0 left-0 right-0 p-5 bg-white/95 backdrop-blur-md border-t border-slate-100 flex items-center justify-between shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">
+                    <div className="flex flex-col">
+                        <span className="text-[10px] font-black text-slate-400 uppercase">Total</span>
+                        <span className="text-xl font-black text-brand-dark leading-none">R$ {totalPrice.toFixed(2)}</span>
                     </div>
+                    <button onClick={handleNextStep} disabled={selection.serviceIds.length === 0} className="bg-brand-dark text-white px-8 py-3.5 rounded-2xl font-black shadow-2xl disabled:opacity-20 transition-all flex items-center gap-2 text-sm uppercase tracking-widest active:scale-95">
+                        Avançar <ChevronRight size={18} strokeWidth={3} />
+                    </button>
                 </div>
             </div>
         )}
 
         {step === 2 && (
              <div className="space-y-6 animate-fade-in flex-1">
-                <button onClick={() => setStep(1)} className="text-xs font-black text-slate-400 flex items-center gap-1 hover:text-brand-dark transition-colors uppercase tracking-widest mb-2"><ChevronLeft size={14}/> Voltar</button>
-                <h2 className="text-xl font-bold text-brand-dark flex items-center gap-2">
-                  <UserIcon size={22} className="text-brand-light" /> Com quem quer cortar?
-                </h2>
+                <button onClick={() => setStep(1)} className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase tracking-widest hover:text-brand-dark"><ChevronLeft size={16}/> Voltar</button>
+                <h2 className="text-xl font-black text-brand-dark tracking-tighter">Escolha o Barbeiro</h2>
                 <div className="grid grid-cols-2 gap-4">
                     {barbers.map(barber => (
-                        <button key={barber.id} onClick={() => { setSelection({...selection, barberId: barber.id}); handleNextStep(); }} className={`p-6 border-2 rounded-[2rem] bg-white transition-all duration-300 flex flex-col items-center group ${selection.barberId === barber.id ? 'border-brand-dark shadow-xl scale-[1.05]' : 'border-white hover:border-slate-200'}`}>
-                            <div className="relative mb-4">
-                                <img src={barber.avatar} className="w-24 h-24 rounded-[1.5rem] object-cover shadow-md group-hover:rotate-3 transition-transform" alt={barber.name} />
-                                <div className="absolute -bottom-2 -right-2 bg-emerald-500 w-6 h-6 rounded-full border-4 border-white"></div>
-                            </div>
-                            <span className="font-black text-brand-dark text-lg">{barber.name.split(' ')[0]}</span>
+                        <button key={barber.id} onClick={() => { setSelection({...selection, barberId: barber.id}); handleNextStep(); }} className={`p-6 border-2 rounded-[2rem] bg-white transition-all flex flex-col items-center gap-3 active:scale-95 ${selection.barberId === barber.id ? 'border-brand-dark shadow-xl ring-4 ring-brand-dark/5' : 'border-slate-100'}`}>
+                            <img src={barber.avatar} className="w-20 h-20 rounded-2xl object-cover shadow-lg border-2 border-white" alt={barber.name} />
+                            <span className="font-black text-brand-dark text-sm uppercase tracking-tighter">{barber.name.split(' ')[0]}</span>
                         </button>
                     ))}
                 </div>
@@ -254,15 +343,13 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ currentUser, initialDa
 
         {step === 3 && (
             <div className="space-y-6 animate-fade-in flex-1">
-                <button onClick={() => setStep(2)} className="text-xs font-black text-slate-400 flex items-center gap-1 hover:text-brand-dark transition-colors uppercase tracking-widest mb-2"><ChevronLeft size={14}/> Voltar</button>
-                <h2 className="text-xl font-bold text-brand-dark flex items-center gap-2">
-                  <CalendarIcon size={22} className="text-brand-light" /> Que dia fica melhor?
-                </h2>
-                <div className="grid grid-cols-4 md:grid-cols-7 gap-2">
+                <button onClick={() => setStep(2)} className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase tracking-widest"><ChevronLeft size={16}/> Voltar</button>
+                <h2 className="text-xl font-black text-brand-dark text-center tracking-tighter">Para quando?</h2>
+                <div className="grid grid-cols-4 gap-3">
                     {availableDates.map(date => (
-                        <button key={date.iso} onClick={() => { setSelection({...selection, date: date.iso}); handleNextStep(); }} className={`py-4 rounded-2xl border-2 transition-all flex flex-col items-center justify-center ${selection.date === date.iso ? 'bg-brand-dark border-brand-dark text-white shadow-lg' : 'bg-white border-white text-slate-600 hover:border-slate-200'}`}>
-                            <span className="text-[10px] font-black uppercase opacity-60">{date.label.split(' ')[0]}</span>
-                            <span className="text-xl font-black">{date.label.split(' ')[1]}</span>
+                        <button key={date.iso} onClick={() => { setSelection({...selection, date: date.iso}); handleNextStep(); }} className={`py-5 rounded-2xl border-2 transition-all flex flex-col items-center justify-center active:scale-90 ${selection.date === date.iso ? 'bg-brand-dark border-brand-dark text-white shadow-xl' : 'bg-white border-slate-100 text-slate-600'}`}>
+                            <span className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-1">{date.label.split(' ')[0]}</span>
+                            <span className="text-2xl font-black tracking-tighter">{date.label.split(' ')[1]}</span>
                         </button>
                     ))}
                 </div>
@@ -271,15 +358,17 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ currentUser, initialDa
 
         {step === 4 && (
             <div className="space-y-6 animate-fade-in flex-1">
-                 <button onClick={() => setStep(3)} className="text-xs font-black text-slate-400 flex items-center gap-1 hover:text-brand-dark transition-colors uppercase tracking-widest mb-2"><ChevronLeft size={14}/> Voltar</button>
-                 <h2 className="text-xl font-bold text-brand-dark flex items-center gap-2">
-                    <Clock size={22} className="text-brand-light" /> Escolha o Horário
-                 </h2>
-                 <div className="grid grid-cols-3 gap-3">
+                 <button onClick={() => setStep(3)} className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase tracking-widest"><ChevronLeft size={16}/> Voltar</button>
+                 <h2 className="text-xl font-black text-brand-dark text-center tracking-tighter">Qual horário?</h2>
+                 <div className="bg-blue-50 border border-blue-100 p-3 rounded-xl flex items-center gap-2 mb-2">
+                    <Clock size={16} className="text-blue-500" />
+                    <p className="text-[10px] font-bold text-blue-700 uppercase">Estimado: {totalDuration} min de atendimento</p>
+                 </div>
+                 <div className="grid grid-cols-3 gap-3 overflow-y-auto max-h-[300px] pr-2 custom-scrollbar">
                      {times.map(time => {
                         const available = isSlotAvailable(time);
                         return (
-                            <button key={time} disabled={!available} onClick={() => { setSelection({...selection, time}); handleNextStep(); }} className={`py-4 border-2 rounded-2xl font-black text-lg transition-all ${available ? (selection.time === time ? 'bg-brand-dark border-brand-dark text-white' : 'bg-white border-white text-slate-600 hover:border-slate-200') : 'bg-slate-100 border-slate-100 text-slate-300 cursor-not-allowed opacity-50'}`}>
+                            <button key={time} disabled={!available} onClick={() => { setSelection({...selection, time}); handleNextStep(); }} className={`py-4 border-2 rounded-xl font-black text-sm tracking-tighter transition-all active:scale-95 ${available ? (selection.time === time ? 'bg-brand-dark border-brand-dark text-white shadow-lg' : 'bg-white border-slate-100 text-slate-700') : 'bg-slate-50 text-slate-200 border-slate-50 cursor-not-allowed opacity-40'}`}>
                                 {time}
                             </button>
                         );
@@ -288,212 +377,171 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ currentUser, initialDa
             </div>
         )}
 
-        {/* PASSO 5: CHECKOUT ESTILO STRIPE */}
         {step === 5 && (
-            <div className="animate-fade-in flex flex-col md:flex-row min-h-[650px]">
-                {/* Lado Esquerdo: Formulário Minimalista */}
-                <div className="flex-1 p-10 md:p-16 lg:p-20 bg-white">
-                    <button onClick={() => setStep(4)} className="text-slate-400 hover:text-slate-900 transition-all mb-10 flex items-center gap-2 text-sm font-bold uppercase tracking-wider">
-                        <ChevronLeft size={20} /> Voltar para o horário
+            <div className="animate-fade-in flex flex-col md:flex-row min-h-[500px]">
+                <div className="flex-1 p-8 md:p-12 bg-white">
+                    <button onClick={() => { if (pixMode !== 'IDLE') setPixMode('IDLE'); else setStep(4); }} className="text-slate-400 hover:text-brand-dark mb-8 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest">
+                        <ChevronLeft size={16} /> Voltar
                     </button>
                     
-                    <div className="max-w-md mx-auto">
-                        <div className="flex items-center gap-2 mb-12 text-brand-dark/40 font-bold">
-                            <Landmark size={24} /> <span className="tracking-tight">Checkout Seguro Barvo</span>
-                        </div>
-
-                        <h2 className="text-3xl font-bold text-slate-800 mb-10 tracking-tight">Como deseja pagar?</h2>
+                    <div className="max-w-sm mx-auto">
+                        <h2 className="text-3xl font-black text-slate-800 mb-8 tracking-tighter">Checkout</h2>
                         
-                        <div className="space-y-8">
-                            {/* OPÇÃO 1: PAGAR PELO APP (STRIPE LOOK) */}
-                            <div className="space-y-4">
-                                <label className="text-sm font-bold text-slate-700 uppercase tracking-widest flex items-center gap-2">
-                                    <Smartphone size={18} className="text-blue-500" /> Cartão ou Pix pelo App
-                                </label>
-                                
-                                <div className={`p-6 border-2 rounded-[2rem] transition-all cursor-pointer group ${selection.paymentMethod === 'APP' ? 'border-brand-dark bg-slate-50 ring-4 ring-brand-dark/5' : 'border-slate-100 hover:border-slate-200'}`} onClick={() => setSelection({...selection, paymentMethod: 'APP'})}>
-                                    {currentUser?.paymentMethods?.length ? (
-                                        <div className="space-y-4">
-                                            {currentUser.paymentMethods.map(pm => (
-                                                <div key={pm.id} className="flex items-center gap-4" onClick={(e) => { e.stopPropagation(); setSelection({...selection, paymentMethod: 'APP', selectedCardId: pm.id}); }}>
-                                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selection.selectedCardId === pm.id ? 'bg-brand-dark border-brand-dark' : 'border-slate-300'}`}>
-                                                        {selection.selectedCardId === pm.id && <div className="w-2 h-2 bg-white rounded-full"></div>}
-                                                    </div>
-                                                    <div className="bg-white p-2 rounded-lg border border-slate-100">
-                                                        <img src={`https://img.icons8.com/color/48/${pm.brand}.png`} className="h-6" alt={pm.brand} />
-                                                    </div>
-                                                    <div className="flex-1">
-                                                        <span className="font-bold text-slate-700 text-sm">•••• {pm.last4}</span>
-                                                        <span className="text-[10px] text-slate-400 ml-2 uppercase font-bold">Exp: {pm.expiry}</span>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                            <button className="text-xs font-black text-blue-600 flex items-center gap-1 hover:underline pt-2">
-                                                <Plus size={14} /> Usar outro cartão
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-4">
-                                            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                                                <div className="flex items-center px-4 py-3 border-b border-slate-100">
-                                                    <input type="text" placeholder="Número do cartão" className="w-full outline-none text-slate-800 text-sm" />
-                                                    <div className="flex gap-1">
-                                                        <img src="https://img.icons8.com/color/48/visa.png" className="h-5" />
-                                                        <img src="https://img.icons8.com/color/48/mastercard.png" className="h-5" />
-                                                    </div>
-                                                </div>
-                                                <div className="flex divide-x divide-slate-100">
-                                                    <input type="text" placeholder="MM / AA" className="w-1/2 px-4 py-3 outline-none text-slate-800 text-sm" />
-                                                    <input type="text" placeholder="CVC" className="w-1/2 px-4 py-3 outline-none text-slate-800 text-sm" />
-                                                </div>
-                                            </div>
-                                            <input type="text" placeholder="Nome no cartão" className="w-full px-4 py-3 border border-slate-200 rounded-xl outline-none text-sm uppercase font-bold" />
-                                        </div>
-                                    )}
-                                </div>
+                        {pixMode === 'GENERATING' && (
+                             <div className="text-center py-20 animate-pulse">
+                                <Loader2 className="animate-spin mx-auto text-emerald-500 mb-4" size={48} />
+                                <p className="text-sm font-black text-slate-600 uppercase tracking-widest">Gerando Pix...</p>
                             </div>
+                        )}
 
-                            {/* OPÇÃO 2: PAGAR NA BARBEARIA */}
-                            <div className="space-y-4">
-                                <label className="text-sm font-bold text-slate-700 uppercase tracking-widest flex items-center gap-2">
-                                    <CreditCard size={18} className="text-emerald-500" /> Na Barbearia
-                                </label>
-                                <div className={`p-6 border-2 rounded-[2rem] transition-all cursor-pointer flex items-center justify-between group ${selection.paymentMethod === 'PRESENTIAL' ? 'border-brand-dark bg-slate-50 ring-4 ring-brand-dark/5' : 'border-slate-100 hover:border-slate-200'}`} onClick={() => setSelection({...selection, paymentMethod: 'PRESENTIAL'})}>
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selection.paymentMethod === 'PRESENTIAL' ? 'bg-brand-dark border-brand-dark' : 'border-slate-300'}`}>
-                                            {selection.paymentMethod === 'PRESENTIAL' && <div className="w-2 h-2 bg-white rounded-full"></div>}
-                                        </div>
-                                        <span className="font-bold text-slate-700">Pagar após o serviço</span>
+                        {pixMode === 'DISPLAY' && (
+                            <div className="space-y-6 animate-fade-in">
+                                <div className="bg-slate-50 p-8 rounded-[2.5rem] border-2 border-emerald-100 flex flex-col items-center">
+                                    <div className="bg-white p-4 rounded-[2rem] shadow-2xl mb-4">
+                                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=BARVO_BOOKING_PIX" className="w-40 h-40" alt="QR Pix" />
                                     </div>
-                                    <Wallet className="text-slate-300 group-hover:text-slate-400" />
+                                    <div className="flex items-center gap-2 text-emerald-600 font-black mb-2">
+                                        <Timer size={20} /> <span className="text-xl">{formatTimer(pixTimer)}</span>
+                                    </div>
+                                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest text-center">Pagamento Instantâneo</p>
                                 </div>
+                                <button onClick={handleNextStep} className="w-full bg-emerald-600 text-white py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest shadow-2xl shadow-emerald-500/20 active:scale-95 transition-all">Confirmar Pagamento</button>
                             </div>
-                        </div>
+                        )}
 
-                        <button onClick={handleNextStep} className="w-full mt-12 bg-brand-dark text-white py-5 rounded-[1.5rem] font-black text-lg shadow-2xl hover:bg-black transition-all transform active:scale-95 flex items-center justify-center gap-3">
-                            Confirmar Agendamento <ArrowRight size={20} />
-                        </button>
-                        
-                        <p className="text-[10px] text-center text-slate-400 font-bold uppercase tracking-widest mt-8 flex items-center justify-center gap-2">
-                            <ShieldCheck size={14} /> Ambiente Seguro & Criptografado
-                        </p>
+                        {pixMode === 'IDLE' && (
+                            <div className="space-y-8">
+                                <div className="space-y-4">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Meios de Pagamento</label>
+                                    <div className="grid grid-cols-1 gap-3">
+                                        {currentUser?.paymentMethods?.map(method => (
+                                            <button 
+                                                key={method.id} 
+                                                onClick={() => setSelection({...selection, paymentMethod: 'CREDIT_CARD', selectedCardId: method.id})} 
+                                                className={`p-5 border-2 rounded-2xl transition-all flex items-center gap-4 text-left active:scale-[0.98] ${selection.selectedCardId === method.id ? 'border-brand-dark bg-slate-50 ring-4 ring-brand-dark/5 shadow-md' : 'border-slate-100 bg-white'}`}
+                                            >
+                                                <div className={`p-2 rounded-lg ${selection.selectedCardId === method.id ? 'bg-brand-dark text-white' : 'bg-slate-50 text-slate-400'}`}>
+                                                    <CreditCard size={20} />
+                                                </div>
+                                                <div className="flex-1"><p className="font-black text-slate-800 text-sm tracking-tight">Cartão Final {method.last4}</p></div>
+                                                {selection.selectedCardId === method.id && <Check size={18} className="text-brand-dark" strokeWidth={4} />}
+                                            </button>
+                                        ))}
+                                        <button onClick={() => setSelection({...selection, paymentMethod: 'PIX', selectedCardId: ''})} className={`p-5 border-2 rounded-2xl transition-all flex items-center gap-4 text-left active:scale-[0.98] ${selection.paymentMethod === 'PIX' ? 'border-emerald-600 bg-emerald-50 ring-4 ring-emerald-600/5 shadow-md' : 'border-slate-100 bg-white'}`}>
+                                            <div className={`p-2 rounded-lg ${selection.paymentMethod === 'PIX' ? 'bg-emerald-600 text-white' : 'bg-slate-50 text-slate-400'}`}>
+                                                <Zap size={20} />
+                                            </div>
+                                            <div className="flex-1"><p className="font-black text-slate-800 text-sm tracking-tight">Pix (5% Desconto)</p></div>
+                                            {selection.paymentMethod === 'PIX' && <Check size={18} className="text-emerald-600" strokeWidth={4} />}
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div className="space-y-4">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Pagar Localmente</label>
+                                    <button onClick={() => setSelection({...selection, paymentMethod: 'PRESENTIAL', selectedCardId: ''})} className={`w-full p-6 border-2 border-dashed rounded-2xl transition-all flex items-center gap-4 text-left active:scale-[0.98] ${selection.paymentMethod === 'PRESENTIAL' ? 'border-slate-800 bg-slate-50' : 'border-slate-100 bg-white'}`}>
+                                        <Wallet size={24} className="text-slate-400" />
+                                        <div className="flex-1">
+                                            <p className="font-black text-slate-800 text-sm tracking-tight">Pagar na Barbearia</p>
+                                        </div>
+                                    </button>
+                                </div>
+
+                                <button onClick={handleNextStep} className={`w-full mt-4 ${selection.paymentMethod === 'PIX' ? 'bg-emerald-600' : 'bg-brand-dark'} text-white py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3`}>
+                                    Revisar Reserva <ArrowRight size={20} strokeWidth={3} />
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                {/* Lado Direito: Resumo Stripe Style */}
-                <div className="w-full md:w-[400px] lg:w-[480px] bg-slate-50 p-10 md:p-16 border-l border-slate-100 flex flex-col justify-center">
-                    <div className="max-w-xs mx-auto w-full">
-                        <div className="flex items-center gap-3 mb-12">
-                            <div className="w-12 h-12 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center">
-                                <Scissors className="text-brand-dark" size={24} />
+                <div className="w-full md:w-96 bg-slate-50 p-8 md:p-12 border-l border-slate-100 flex flex-col justify-center">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8 text-center md:text-left">Resumo</p>
+                    <div className="space-y-4 mb-10">
+                        {selectedServices.map(s => (
+                            <div key={s.id} className="flex justify-between items-start">
+                                <div className="flex-1 pr-4">
+                                    <p className="font-black text-slate-800 text-sm tracking-tight leading-tight">{s.name}</p>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase">{s.durationMinutes} min</p>
+                                </div>
+                                <span className="font-black text-slate-900 text-sm">R$ {Number(s.price).toFixed(2)}</span>
                             </div>
-                            <span className="text-xl font-black text-brand-dark tracking-tighter uppercase italic">{shopSettings.shopName}</span>
-                        </div>
-
-                        <div className="space-y-8">
-                            <div className="space-y-4">
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Serviços Selecionados</p>
-                                {selectedServices.map(s => (
-                                    <div key={s.id} className="flex justify-between items-start">
-                                        <div className="flex-1">
-                                            <p className="font-bold text-slate-800">{s.name}</p>
-                                            <p className="text-xs text-slate-400">{s.durationMinutes} min • Com {selectedBarber?.name}</p>
-                                        </div>
-                                        <span className="font-bold text-slate-900">R$ {Number(s.price).toFixed(2)}</span>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <div className="pt-8 border-t border-slate-200 space-y-4">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-slate-500 font-medium">Subtotal</span>
-                                    <span className="text-slate-700 font-bold">R$ {totalPrice.toFixed(2)}</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-slate-500 font-medium">Taxas</span>
-                                    <span className="text-slate-700 font-bold">R$ 0,00</span>
-                                </div>
-                                <div className="flex justify-between items-center pt-4">
-                                    <span className="text-2xl font-black text-slate-900">Total</span>
-                                    <span className="text-3xl font-black text-slate-900">R$ {totalPrice.toFixed(2)}</span>
-                                </div>
-                            </div>
-
-                            <div className="bg-white/50 p-6 rounded-3xl border border-slate-100 mt-10">
-                                <div className="flex items-center gap-3 text-slate-600 mb-2">
-                                    <CalendarIcon size={18} />
-                                    <span className="text-sm font-bold">{new Date(selection.date).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}</span>
-                                </div>
-                                <div className="flex items-center gap-3 text-slate-600">
-                                    <Clock size={18} />
-                                    <span className="text-sm font-bold">{selection.time}</span>
-                                </div>
-                            </div>
-                        </div>
+                        ))}
+                    </div>
+                    <div className="pt-6 border-t-2 border-slate-200/50 flex justify-between items-center">
+                        <span className="text-xl font-black text-slate-900 tracking-tighter uppercase">Total</span>
+                        <span className="text-3xl font-black text-slate-900 tracking-tighter">R$ {totalPrice.toFixed(2)}</span>
                     </div>
                 </div>
             </div>
         )}
 
         {step === 6 && (
-            <div className="space-y-6 animate-fade-in flex-1 flex flex-col pb-24 max-w-xl mx-auto w-full pt-10">
-                <button onClick={() => setStep(5)} className="text-xs font-black text-slate-400 flex items-center gap-1 hover:text-brand-dark transition-colors uppercase tracking-widest mb-2"><ChevronLeft size={14}/> Voltar para o Checkout</button>
-                <h2 className="text-2xl font-bold text-brand-dark flex items-center gap-2">
-                    <Check size={28} className="text-emerald-500" /> Último Passo
-                </h2>
+            <div className="space-y-6 animate-fade-in flex-1 flex flex-col">
+                <button onClick={() => setStep(5)} className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase tracking-widest"><ChevronLeft size={16}/> Voltar</button>
+                <h2 className="text-2xl font-black text-brand-dark tracking-tighter">Confirmação</h2>
                 
-                <p className="text-slate-500 font-medium">Confirme os detalhes finais do seu agendamento na Barvo.</p>
-
-                <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-8 space-y-6">
-                    <div className="flex justify-between items-center pb-4 border-b border-slate-50">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Serviços</span>
-                        <span className="font-bold text-brand-dark">{selectedServices.map(s => s.name).join(', ')}</span>
+                <div className="bg-white rounded-[2rem] border border-slate-100 p-8 space-y-6 shadow-xl relative overflow-hidden">
+                    <div className="flex justify-between items-center text-sm border-b border-slate-50 pb-4">
+                        <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Agendamento</span>
+                        <span className="font-black text-right pl-4">{selectedServices.map(s => s.name).join(', ')}</span>
                     </div>
-                    <div className="flex justify-between items-center pb-4 border-b border-slate-50">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Barbeiro</span>
-                        <span className="font-bold text-brand-dark">{selectedBarber?.name}</span>
+                    <div className="flex justify-between items-center text-sm border-b border-slate-50 pb-4">
+                        <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Data e Hora</span>
+                        <span className="font-black">{new Date(selection.date).toLocaleDateString('pt-BR')} às {selection.time}</span>
                     </div>
-                    <div className="flex justify-between items-center">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pagamento</span>
-                        <span className={`text-[10px] font-black px-3 py-1.5 rounded-xl ${selection.paymentMethod === 'APP' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
-                            {selection.paymentMethod === 'APP' ? 'MÉTODO: VIA APLICATIVO' : 'MÉTODO: NA BARBEARIA'}
+                    <div className="flex justify-between items-center text-sm border-b border-slate-50 pb-4">
+                        <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Barbeiro</span>
+                        <span className="font-black">{selectedBarber?.name}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                        <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Pagamento</span>
+                        <span className={`font-black uppercase text-[10px] px-3 py-1 rounded-full ${selection.paymentMethod === 'PRESENTIAL' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                            {selection.paymentMethod === 'PIX' ? 'Pix' : selection.paymentMethod === 'PRESENTIAL' ? 'Presencial' : 'App'}
                         </span>
                     </div>
                 </div>
 
-                {!currentUser && (
-                    <div className="space-y-4 bg-brand-light/10 p-8 rounded-[2rem] border-2 border-brand-light/20">
-                        <div className="flex items-center gap-2 text-brand-dark font-bold text-sm mb-2"><Info size={16}/> Informe seus dados de contato</div>
-                        <input type="text" placeholder="Seu Nome Completo" className="w-full px-5 py-4 border-2 border-white rounded-2xl outline-none focus:border-brand-dark transition-all text-sm font-bold" value={guestInfo.name} onChange={e => setGuestInfo({...guestInfo, name: e.target.value})} />
-                        <input type="tel" placeholder="WhatsApp" className="w-full px-5 py-4 border-2 border-white rounded-2xl outline-none focus:border-brand-dark transition-all text-sm font-bold" value={guestInfo.phone} onChange={e => setGuestInfo({...guestInfo, phone: e.target.value})} />
+                {(!currentUser || (currentUser.role !== UserRole.CUSTOMER && !initialData?.customerId)) && (
+                    <div className="space-y-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Seu Nome</p>
+                        <div className="relative">
+                            <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                            <input type="text" placeholder="Como quer ser chamado?" className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-xl outline-none text-sm font-black" value={guestInfo.name} onChange={e => setGuestInfo({...guestInfo, name: e.target.value})} />
+                        </div>
                     </div>
                 )}
 
-                <div className="pt-10 flex flex-col items-center">
-                    <button onClick={confirmBooking} disabled={isProcessing} className="w-full bg-brand-dark text-white py-5 rounded-[1.5rem] font-black text-xl shadow-2xl hover:bg-black transition-all flex items-center justify-center gap-3">
+                <div className="mt-auto pt-8">
+                    <button onClick={confirmBooking} disabled={isProcessing} className="w-full bg-brand-dark text-white py-5 rounded-[2rem] font-black text-base uppercase tracking-widest shadow-2xl active:scale-95 flex items-center justify-center gap-3">
                         {isProcessing ? <Loader2 className="animate-spin" size={24} /> : 'Finalizar Agendamento'}
                     </button>
-                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-6">Ao confirmar, você concorda com nossas políticas de cancelamento.</p>
                 </div>
             </div>
         )}
 
         {step === 7 && (
-            <div className="text-center space-y-8 animate-fade-in my-auto flex flex-col items-center justify-center flex-1 py-20">
-                <div className="w-32 h-32 bg-emerald-100 rounded-[2.5rem] flex items-center justify-center text-emerald-600 shadow-inner rotate-6 animate-bounce">
-                    <Check size={64} strokeWidth={4} />
+            <div className="text-center space-y-8 animate-fade-in my-auto flex flex-col items-center justify-center flex-1">
+                <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 shadow-inner">
+                    <CheckCircle size={48} strokeWidth={3} className="animate-bounce" />
                 </div>
-                <div>
-                    <h2 className="text-4xl font-black text-brand-dark tracking-tighter uppercase italic">Reserva Confirmada!</h2>
-                    <p className="text-slate-500 mt-2 font-medium max-w-sm mx-auto leading-relaxed">
-                        Tudo certo para o seu atendimento em <b>{new Date(selection.date).toLocaleDateString('pt-BR')}</b> às <b>{selection.time}</b>.
+                <div className="px-4">
+                    <h2 className="text-3xl font-black text-brand-dark tracking-tighter uppercase italic">Agendado!</h2>
+                    <p className="text-slate-500 mt-2 text-sm font-medium max-w-xs mx-auto leading-relaxed">
+                        Tudo certo, <b>{currentUser?.name.split(' ')[0] || guestInfo.name.split(' ')[0]}</b>! Seu horário está garantido para dia <b>{new Date(selection.date).toLocaleDateString('pt-BR')}</b> às <b>{selection.time}</b>.
                     </p>
                 </div>
-                <div className="w-full max-w-xs space-y-4">
-                    <a href={getWhatsAppLink()} target="_blank" rel="noopener noreferrer" className="w-full flex items-center justify-center gap-3 bg-emerald-600 text-white font-black py-5 rounded-[1.5rem] shadow-xl hover:bg-emerald-700 transition-all transform hover:-translate-y-1">
-                        <MessageCircle size={24} /> Enviar p/ WhatsApp
+                
+                <div className="w-full max-w-xs space-y-3">
+                    <a 
+                      href={getWhatsAppLink()} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="w-full flex items-center justify-center gap-3 bg-emerald-600 text-white font-black py-4 rounded-2xl shadow-xl shadow-emerald-600/20 active:scale-95 transition-all text-xs uppercase tracking-widest"
+                    >
+                        <MessageCircle size={18} /> Notificar no WhatsApp
                     </a>
-                    <button onClick={() => { setStep(1); setSelection({serviceIds: [], barberId: '', time: '', date: new Date().toISOString().split('T')[0], paymentMethod: 'PRESENTIAL', selectedCardId: ''}); }} className="text-slate-400 font-bold hover:text-brand-dark transition-all text-sm uppercase tracking-widest">Agendar outro serviço</button>
+                    <button onClick={() => { setStep(1); setPixMode('IDLE'); }} className="text-slate-400 font-bold text-[10px] uppercase tracking-widest pt-2">Fazer outra reserva</button>
                 </div>
             </div>
         )}

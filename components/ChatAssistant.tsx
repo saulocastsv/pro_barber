@@ -1,15 +1,32 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { MessageSquare, X, Send, Bot, User } from 'lucide-react';
-import { sendMessageToGemini } from '../services/geminiService';
 
-export const ChatAssistant: React.FC = () => {
+import React, { useState, useRef, useEffect } from 'react';
+import { MessageSquare, X, Send, Bot, User as UserIcon } from 'lucide-react';
+import { sendMessageToGemini } from '../services/geminiService';
+import { User, UserRole } from '../types';
+
+interface ChatAssistantProps {
+  currentUser: User | null;
+}
+
+export const ChatAssistant: React.FC<ChatAssistantProps> = ({ currentUser }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<{role: 'user' | 'assistant', text: string}[]>([
-    { role: 'assistant', text: 'Fala, parceiro! 👊 Sou o assistente da Barvo. Quer dar um tapa no visual, saber preços ou tirar dúvidas? Manda aí! 💈🔥' }
-  ]);
+  const [messages, setMessages] = useState<{role: 'user' | 'assistant', text: string}[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Definir saudação inicial baseada no papel do usuário
+  useEffect(() => {
+    let greeting = 'Fala, parceiro! 👊 Sou o assistente da Barvo. Como posso te ajudar hoje? 💈🔥';
+    
+    if (currentUser?.role === UserRole.OWNER) {
+      greeting = `Olá, Comandante ${currentUser.name.split(' ')[0]}! 📈 Estou pronto para te ajudar com insights de gestão, análise de lucros e estratégias para a Barvo crescer. O que vamos analisar hoje?`;
+    } else if (currentUser?.role === UserRole.BARBER) {
+      greeting = `E aí, fera! ✂️ Bora turbinar sua agenda? Posso criar legendas pro seu Insta, te ajudar a vender mais produtos ou sugerir como abordar aquele cliente difícil. Manda a braba!`;
+    }
+
+    setMessages([{ role: 'assistant', text: greeting }]);
+  }, [currentUser]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -25,7 +42,7 @@ export const ChatAssistant: React.FC = () => {
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
     setIsLoading(true);
 
-    const reply = await sendMessageToGemini(userMsg);
+    const reply = await sendMessageToGemini(userMsg, currentUser);
     
     setMessages(prev => [...prev, { role: 'assistant', text: reply }]);
     setIsLoading(false);
@@ -33,6 +50,12 @@ export const ChatAssistant: React.FC = () => {
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleSend();
+  };
+
+  const getBotName = () => {
+    if (currentUser?.role === UserRole.OWNER) return "Barvo Business AI";
+    if (currentUser?.role === UserRole.BARBER) return "Barvo Sales Mentor";
+    return "Suporte Barvo";
   };
 
   return (
@@ -53,8 +76,11 @@ export const ChatAssistant: React.FC = () => {
                 <Bot size={20} className="text-brand-dark" />
              </div>
              <div>
-                <h3 className="text-white font-bold">Assistente Barvo</h3>
-                <p className="text-brand-gray/50 text-xs flex items-center gap-1"><span className="w-2 h-2 bg-green-500 rounded-full block"></span> Online</p>
+                <h3 className="text-white font-bold">{getBotName()}</h3>
+                <p className="text-brand-gray/50 text-xs flex items-center gap-1">
+                    <span className="w-2 h-2 bg-green-500 rounded-full block"></span> 
+                    Inteligência Artificial Ativa
+                </p>
              </div>
           </div>
 
@@ -62,7 +88,7 @@ export const ChatAssistant: React.FC = () => {
             {messages.map((m, i) => (
                 <div key={i} className={`flex gap-2 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${m.role === 'user' ? 'bg-brand-light/30 text-brand-dark' : 'bg-brand-gray/10 text-brand-midGray'}`}>
-                        {m.role === 'user' ? <User size={14} /> : <Bot size={14} />}
+                        {m.role === 'user' ? <UserIcon size={14} /> : <Bot size={14} />}
                     </div>
                     <div className={`p-3 rounded-2xl text-sm max-w-[80%] ${m.role === 'user' ? 'bg-brand-dark text-white rounded-tr-none' : 'bg-white text-slate-700 shadow-sm border border-slate-100 rounded-tl-none'}`}>
                         {m.text}
@@ -85,7 +111,7 @@ export const ChatAssistant: React.FC = () => {
             <input 
                 type="text" 
                 className="flex-1 bg-slate-100 border-none rounded-full px-4 text-sm focus:ring-2 focus:ring-brand-light outline-none"
-                placeholder="Dúvidas sobre a Barvo?"
+                placeholder="Pergunte qualquer coisa..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyPress}
