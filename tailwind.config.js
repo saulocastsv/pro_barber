@@ -9,6 +9,15 @@ export default {
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
       },
+      colors: {
+        brand: {
+          dark: '#081E26',      // Navy Teal Profundo
+          light: '#B8D0D9',     // Ice Blue (Acento)
+          gray: '#D9D9D9',      // Cinza Fundo
+          midGray: '#737373',   // Cinza Texto
+          black: '#0D0D0D',     // Preto Títulos
+        },
+      },
       animation: {
         'fade-in': 'fadeInUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
       },

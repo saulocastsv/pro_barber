@@ -1,15 +1,18 @@
-
 import React, { useState } from 'react';
-import { MOCK_TRANSACTIONS } from '../constants';
+import { Transaction } from '../types';
 import { DollarSign, TrendingDown, TrendingUp, Wallet, Download, Loader2 } from 'lucide-react';
 
-export const Financials: React.FC = () => {
+interface FinancialsProps {
+  transactions: Transaction[];
+}
+
+export const Financials: React.FC<FinancialsProps> = ({ transactions }) => {
   const [loadingMore, setLoadingMore] = useState(false);
-  const [displayedTransactions, setDisplayedTransactions] = useState(MOCK_TRANSACTIONS.slice(0, 5));
+  const [displayedTransactions, setDisplayedTransactions] = useState(transactions.slice(0, 5));
 
   const handleExportCSV = () => {
       const headers = ['ID', 'Data', 'Descricao', 'Tipo', 'Valor', 'Barbeiro'];
-      const rows = MOCK_TRANSACTIONS.map(t => [t.id, t.date, t.description, t.type, t.amount.toString(), t.barberId || '-']);
+      const rows = transactions.map(t => [t.id, t.date, t.description, t.type, t.amount.toString(), t.barberId || '-']);
       
       let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");
       const encodedUri = encodeURI(csvContent);
@@ -24,7 +27,7 @@ export const Financials: React.FC = () => {
   const handleLoadMore = () => {
       setLoadingMore(true);
       setTimeout(() => {
-          setDisplayedTransactions(MOCK_TRANSACTIONS); // Load all mock
+          setDisplayedTransactions(transactions); // Load all transactions
           setLoadingMore(false);
       }, 1000);
   };
@@ -51,7 +54,7 @@ export const Financials: React.FC = () => {
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
             <div>
                 <p className="text-sm font-medium text-slate-500 mb-1">Receita Total</p>
-                <h3 className="text-2xl font-bold text-slate-800">R$ 15.450,00</h3>
+                <h3 className="text-2xl font-bold text-slate-800">R$ {transactions.reduce((acc, t) => acc + t.amount, 0).toLocaleString('pt-BR')}</h3>
                 <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full mt-2 inline-block">+12% vs mês anterior</span>
             </div>
             <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center">
@@ -73,7 +76,7 @@ export const Financials: React.FC = () => {
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
             <div>
                 <p className="text-sm font-medium text-slate-500 mb-1">Lucro Líquido</p>
-                <h3 className="text-2xl font-bold text-slate-800">R$ 11.220,00</h3>
+                <h3 className="text-2xl font-bold text-slate-800">R$ {(transactions.reduce((acc, t) => acc + t.amount, 0) - 4230).toLocaleString('pt-BR')}</h3>
                 <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full mt-2 inline-block">Margem de 72%</span>
             </div>
             <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center">
@@ -126,7 +129,7 @@ export const Financials: React.FC = () => {
             </table>
         </div>
         
-        {displayedTransactions.length < MOCK_TRANSACTIONS.length && (
+        {displayedTransactions.length < transactions.length && (
             <div className="p-4 border-t border-slate-100 bg-slate-50 text-center">
                 <button 
                     onClick={handleLoadMore}

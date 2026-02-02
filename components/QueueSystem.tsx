@@ -1,20 +1,21 @@
 import React, { useState } from 'react';
 import { QueueItem, Service } from '../types';
 import { Clock, User, Scissors, Play, CheckCircle } from 'lucide-react';
-import { SERVICES } from '../constants';
 
 interface QueueSystemProps {
   initialQueue: QueueItem[];
+  // Added services to props
+  services: Service[];
 }
 
-export const QueueSystem: React.FC<QueueSystemProps> = ({ initialQueue }) => {
+export const QueueSystem: React.FC<QueueSystemProps> = ({ initialQueue, services }) => {
   const [queue, setQueue] = useState<QueueItem[]>(initialQueue);
   const [newCustomerName, setNewCustomerName] = useState('');
-  const [selectedService, setSelectedService] = useState<string>(SERVICES[0].id);
+  const [selectedService, setSelectedService] = useState<string>(services[0].id);
 
   const addToQueue = () => {
     if (!newCustomerName) return;
-    const service = SERVICES.find(s => s.id === selectedService);
+    const service = services.find(s => s.id === selectedService);
     const estimatedWait = queue.reduce((acc, item) => acc + (item.status === 'WAITING' ? 20 : 0), 10); // Simple mock logic
     
     const newItem: QueueItem = {
@@ -65,7 +66,7 @@ export const QueueSystem: React.FC<QueueSystemProps> = ({ initialQueue }) => {
                     value={selectedService}
                     onChange={e => setSelectedService(e.target.value)}
                 >
-                    {SERVICES.map(s => <option key={s.id} value={s.id}>{s.name} - R${s.price}</option>)}
+                    {services.map(s => <option key={s.id} value={s.id}>{s.name} - R${s.price}</option>)}
                 </select>
             </div>
             <button 
@@ -93,7 +94,7 @@ export const QueueSystem: React.FC<QueueSystemProps> = ({ initialQueue }) => {
                 <div className="text-center text-slate-500 mt-20">A fila está vazia.</div>
             )}
             {queue.map((item, index) => {
-                const service = SERVICES.find(s => s.id === item.serviceId);
+                const service = services.find(s => s.id === item.serviceId);
                 const isWaiting = item.status === 'WAITING';
                 return (
                     <div key={item.id} className={`

@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { Appointment, User } from '../types';
+import { Appointment, User, Service } from '../types';
 import { Clock, Calendar, MapPin, Scissors, RefreshCw, XCircle, AlertTriangle, Plus, Check, FileText, CalendarDays, MoreVertical, Trash2 } from 'lucide-react';
-import { SERVICES, MOCK_USERS } from '../constants';
+import { MOCK_USERS } from '../constants';
 
 interface CustomerAppointmentsProps {
   currentUser: User;
@@ -9,9 +10,11 @@ interface CustomerAppointmentsProps {
   onRebook: (appt: Appointment) => void;
   onCancel: (id: string) => void;
   onNavigate: (view: string) => void;
+  // Added services to props
+  services: Service[];
 }
 
-export const CustomerAppointments: React.FC<CustomerAppointmentsProps> = ({ currentUser, appointments, onRebook, onCancel, onNavigate }) => {
+export const CustomerAppointments: React.FC<CustomerAppointmentsProps> = ({ currentUser, appointments, onRebook, onCancel, onNavigate, services }) => {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'history'>('upcoming');
   const [cancelModalId, setCancelModalId] = useState<string | null>(null);
   const [rescheduleModalAppt, setRescheduleModalAppt] = useState<Appointment | null>(null);
@@ -77,7 +80,8 @@ export const CustomerAppointments: React.FC<CustomerAppointmentsProps> = ({ curr
   };
 
   const renderCard = (appt: Appointment, isHistory: boolean) => {
-    const service = SERVICES.find(s => s.id === appt.serviceId);
+    // Fixed: use services prop instead of constant
+    const service = services.find(s => s.id === appt.serviceId);
     const barber = MOCK_USERS.find(u => u.id === appt.barberId);
     const date = new Date(appt.startTime);
     const dateStr = date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -195,7 +199,7 @@ export const CustomerAppointments: React.FC<CustomerAppointmentsProps> = ({ curr
 
             {/* Price */}
             <div className="text-right hidden md:block mr-8">
-                <p className="text-xl font-bold text-slate-900">R$ {service?.price.toFixed(2)}</p>
+                <p className="text-xl font-bold text-slate-900">R$ {Number(service?.price || 0).toFixed(2)}</p>
                 {isHistory && appt.status === 'COMPLETED' && (
                     <div className="text-xs text-emerald-600 font-bold mt-1 bg-emerald-50 px-2 py-1 rounded-full inline-block">+10 pts</div>
                 )}
@@ -286,7 +290,8 @@ export const CustomerAppointments: React.FC<CustomerAppointmentsProps> = ({ curr
                   </div>
                   <div className="p-6 space-y-6">
                       {(() => {
-                          const service = SERVICES.find(s => s.id === detailsModalAppt.serviceId);
+                          // Fixed: use services prop instead of constant
+                          const service = services.find(s => s.id === detailsModalAppt.serviceId);
                           const barber = MOCK_USERS.find(u => u.id === detailsModalAppt.barberId);
                           const date = new Date(detailsModalAppt.startTime);
                           const status = getStatusInfo(detailsModalAppt, true);
@@ -332,7 +337,7 @@ export const CustomerAppointments: React.FC<CustomerAppointmentsProps> = ({ curr
 
                                 <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
                                     <p className="font-bold text-slate-500">Total</p>
-                                    <p className="font-bold text-2xl text-slate-900">R$ {service?.price.toFixed(2)}</p>
+                                    <p className="font-bold text-2xl text-slate-900">R$ {Number(service?.price || 0).toFixed(2)}</p>
                                 </div>
 
                                 <button 

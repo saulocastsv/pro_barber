@@ -1,309 +1,143 @@
 
 import React, { useState } from 'react';
-import { MOCK_USERS, MOCK_NOTES, MOCK_APPOINTMENTS, SERVICES } from '../constants';
-import { UserRole } from '../types';
-import { Search, Phone, User as UserIcon, Calendar, FileText, Save, Clock, Scissors, MessageCircle, Filter, History, ChevronLeft } from 'lucide-react';
+import { Service, User, TechnicalNote, Appointment } from '../types';
+import { Search, FileText, History, ChevronLeft, Crown, Smartphone, CreditCard, RefreshCw, AlertTriangle } from 'lucide-react';
 
-export const CustomerCRM: React.FC = () => {
+interface CustomerCRMProps {
+  services: Service[];
+  notes: TechnicalNote[];
+  onSaveNote: (note: Partial<TechnicalNote>) => void;
+  customers: User[];
+  appointments: Appointment[];
+}
+
+export const CustomerCRM: React.FC<CustomerCRMProps> = ({ services, notes, onSaveNote, customers, appointments }) => {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<'name' | 'lastVisit' | 'totalVisits'>('name');
   const [newNote, setNewNote] = useState('');
 
-  // Filter only customers
-  const customers = MOCK_USERS.filter(u => u.role === UserRole.CUSTOMER);
-
-  // Helper to get stats for sorting and display
   const getCustomerStats = (customerId: string) => {
-    const customerAppts = MOCK_APPOINTMENTS.filter(a => a.customerId === customerId);
+    const customerAppts = appointments.filter(a => a.customerId === customerId);
     const completedAppts = customerAppts.filter(a => a.status === 'COMPLETED');
-    
-    // Sort by date desc
     const sortedHistory = [...customerAppts].sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
-    const lastVisit = sortedHistory.length > 0 ? new Date(sortedHistory[0].startTime) : null;
-    
-    // Calculate LTV (Lifetime Value) - Mock based on services
     const ltv = completedAppts.reduce((acc, curr) => {
-        const service = SERVICES.find(s => s.id === curr.serviceId);
+        const service = services.find(s => s.id === curr.serviceId);
         return acc + (service?.price || 0);
     }, 0);
-
-    return { totalVisits: completedAppts.length, lastVisit, ltv, history: sortedHistory };
+    return { totalVisits: completedAppts.length, ltv, history: sortedHistory };
   };
 
-  // Filter and Sort Logic
   const processedCustomers = customers
     .filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.phone?.includes(searchTerm))
-    .map(c => ({ ...c, ...getCustomerStats(c.id) }))
-    .sort((a, b) => {
-        if (sortBy === 'name') return a.name.localeCompare(b.name);
-        if (sortBy === 'totalVisits') return b.totalVisits - a.totalVisits;
-        if (sortBy === 'lastVisit') {
-            if (!a.lastVisit) return 1;
-            if (!b.lastVisit) return -1;
-            return b.lastVisit.getTime() - a.lastVisit.getTime();
-        }
-        return 0;
-    });
+    .map(c => ({ ...c, ...getCustomerStats(c.id) }));
 
-  const selectedCustomer = selectedCustomerId 
-    ? processedCustomers.find(c => c.id === selectedCustomerId) 
-    : null;
+  const selectedCustomer = selectedCustomerId ? processedCustomers.find(c => c.id === selectedCustomerId) : null;
+  const customerNotes = selectedCustomerId ? notes.filter(n => n.customerId === selectedCustomerId) : [];
 
-  const customerNotes = selectedCustomerId 
-    ? MOCK_NOTES.filter(n => n.customerId === selectedCustomerId) 
-    : [];
-
-  const handleSaveNote = () => {
-      if (!newNote.trim()) return;
-      alert('Nota salva com sucesso! (Simulação)');
+  const handleSave = () => {
+      if (!newNote.trim() || !selectedCustomerId) return;
+      onSaveNote({ customerId: selectedCustomerId, note: newNote, tags: ['Manual'] });
       setNewNote('');
   };
 
   return (
     <div className="space-y-4 md:space-y-6 animate-fade-in pb-10 h-[calc(100vh-140px)] flex flex-col">
-      <div className="flex justify-between items-center flex-shrink-0">
-        <div>
-            <h2 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight">Fichas de Clientes</h2>
-            <p className="text-slate-500 mt-1 text-sm md:text-base">Histórico técnico, preferências e CRM.</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 overflow-hidden min-h-0">
-        
-        {/* Left Column: List */}
-        {/* Mobile Logic: Hide this column if a customer is selected. Show if none selected. */}
-        {/* Desktop Logic: Always show (lg:flex) */}
-        <div className={`
-            lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-100 flex-col overflow-hidden
-            ${selectedCustomerId ? 'hidden lg:flex' : 'flex'}
-        `}>
-            {/* Search & Filter Header */}
-            <div className="p-4 border-b border-slate-100 space-y-3 bg-white z-10">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 overflow-hidden">
+        <div className={`lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden ${selectedCustomerId ? 'hidden lg:flex' : 'flex'}`}>
+            <div className="p-4 border-b border-slate-100 bg-white">
                 <div className="relative">
                     <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input 
-                        type="text" 
-                        placeholder="Buscar por nome ou telefone..." 
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-                <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1">
-                        <Filter size={12} /> Ordenar por:
-                    </span>
-                    <select 
-                        className="text-sm bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 focus:ring-blue-500 outline-none cursor-pointer"
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value as any)}
-                    >
-                        <option value="name">Nome (A-Z)</option>
-                        <option value="lastVisit">Mais Recentes</option>
-                        <option value="totalVisits">Mais Fiéis (Visitas)</option>
-                    </select>
+                    <input type="text" placeholder="Buscar cliente..." className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 </div>
             </div>
-
-            {/* Scrollable List */}
             <div className="flex-1 overflow-y-auto custom-scrollbar">
                 {processedCustomers.map(customer => (
-                    <div 
-                        key={customer.id}
-                        onClick={() => setSelectedCustomerId(customer.id)}
-                        className={`p-4 border-b border-slate-50 cursor-pointer transition-all hover:bg-slate-50 flex items-center gap-3 ${selectedCustomerId === customer.id ? 'bg-blue-50 border-blue-100' : ''}`}
-                    >
-                        <img src={customer.avatar} alt={customer.name} className="w-12 h-12 rounded-full object-cover border border-slate-100 flex-shrink-0" />
+                    <div key={customer.id} onClick={() => setSelectedCustomerId(customer.id)} className={`p-4 border-b border-slate-50 cursor-pointer transition-all hover:bg-slate-50 flex items-center gap-3 ${selectedCustomerId === customer.id ? 'bg-blue-50 border-blue-100' : ''}`}>
+                        <img src={customer.avatar} className="w-12 h-12 rounded-full object-cover border" alt={customer.name} />
                         <div className="flex-1 min-w-0">
-                            <h4 className={`font-bold text-sm truncate ${selectedCustomerId === customer.id ? 'text-blue-700' : 'text-slate-800'}`}>
-                                {customer.name}
-                            </h4>
-                            <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
-                                <Phone size={10} /> {customer.phone || 'Sem telefone'}
+                            <h4 className="font-bold text-sm truncate">{customer.name}</h4>
+                            <div className="flex gap-1 mt-1">
+                                {customer.membershipId && <Crown size={12} className="text-amber-500" />}
+                                <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tighter">{customer.membershipId ? 'Assinante' : 'Avulso'}</p>
                             </div>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                             {customer.lastVisit ? (
-                                <div className="text-[10px] text-slate-400 font-medium">
-                                    {sortBy === 'lastVisit' ? 'Última vez:' : ''} <br/>
-                                    <span className="text-slate-600">{customer.lastVisit.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'})}</span>
-                                </div>
-                             ) : (
-                                <span className="text-[10px] bg-slate-100 px-2 py-1 rounded-full text-slate-500">Novo</span>
-                             )}
-                             {sortBy === 'totalVisits' && (
-                                 <div className="mt-1 text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">
-                                     {customer.totalVisits} cortes
-                                 </div>
-                             )}
                         </div>
                     </div>
                 ))}
-                {processedCustomers.length === 0 && (
-                    <div className="p-10 text-center text-slate-400 text-sm">Nenhum cliente encontrado.</div>
-                )}
             </div>
         </div>
 
-        {/* Right Column: Details */}
-        {/* Mobile Logic: Show this column ONLY if customer is selected. */}
-        {/* Desktop Logic: Show if selected (or empty state), always visible in grid. */}
-        <div className={`
-            lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 flex-col overflow-hidden
-            ${selectedCustomerId ? 'flex' : 'hidden lg:flex'}
-        `}>
+        <div className={`lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 flex-col overflow-hidden ${selectedCustomerId ? 'flex' : 'hidden lg:flex'}`}>
             {selectedCustomer ? (
                 <div className="flex flex-col h-full overflow-hidden">
-                    {/* Header Details - Fixed top */}
-                    <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 flex-shrink-0">
-                        <div className="flex items-center gap-4 w-full md:w-auto">
-                            
-                            {/* Mobile Back Button */}
-                            <button 
-                                onClick={() => setSelectedCustomerId(null)}
-                                className="lg:hidden -ml-2 p-2 text-slate-500 hover:bg-slate-200 rounded-full transition-colors mr-1"
-                            >
-                                <ChevronLeft size={24} />
-                            </button>
-
-                            <img src={selectedCustomer.avatar} className="w-16 h-16 md:w-20 md:h-20 rounded-2xl shadow-md object-cover border-4 border-white flex-shrink-0" alt="Avatar" />
-                            <div className="flex-1 min-w-0">
-                                <h2 className="text-xl md:text-2xl font-bold text-slate-800 truncate">{selectedCustomer.name}</h2>
-                                <p className="text-slate-500 text-xs md:text-sm flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
-                                    <span className="flex items-center gap-1"><Phone size={12} /> {selectedCustomer.phone}</span>
-                                    <span className="hidden md:inline text-slate-300">|</span>
-                                    <span className="text-slate-500 truncate">{selectedCustomer.email}</span>
-                                </p>
+                    <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div className="flex items-center gap-4">
+                            <button onClick={() => setSelectedCustomerId(null)} className="lg:hidden p-2 text-slate-500 hover:bg-slate-200 rounded-full mr-1"><ChevronLeft size={24} /></button>
+                            <img src={selectedCustomer.avatar} className="w-16 h-16 rounded-2xl shadow-md object-cover border-4 border-white" alt="Avatar" />
+                            <div>
+                                <h2 className="text-xl md:text-2xl font-bold text-slate-800">{selectedCustomer.name}</h2>
+                                <div className="flex flex-wrap gap-2 mt-1">
+                                    {selectedCustomer.membershipId && (
+                                        <span className="bg-amber-100 text-amber-700 text-[9px] font-black px-2 py-0.5 rounded-full border border-amber-200 uppercase tracking-tighter flex items-center gap-1">
+                                            <Crown size={10}/> Barvo Club Premium
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                        
-                        {/* Actions & Stats Row */}
-                        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto mt-2 md:mt-0">
-                            <div className="flex gap-2">
-                                <button className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-sm shadow-emerald-200">
-                                    <MessageCircle size={14} /> <span className="hidden md:inline">WhatsApp</span>
-                                </button>
-                                <button className="flex-1 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors">
-                                    <Calendar size={14} /> Agendar
-                                </button>
+                        <div className="flex gap-4 bg-white p-3 rounded-xl border shadow-sm">
+                            <div className="text-center px-2">
+                                <p className="text-[10px] text-slate-400 font-bold uppercase">LTV</p>
+                                <p className="text-lg font-bold text-slate-800">R$ {selectedCustomer.ltv}</p>
                             </div>
-
-                            <div className="flex gap-4 bg-white p-3 rounded-xl border border-slate-100 shadow-sm justify-center sm:justify-start">
-                                <div className="text-center px-2">
-                                    <p className="text-xs text-slate-400 font-bold uppercase">LTV Total</p>
-                                    <p className="text-lg font-bold text-slate-800">R$ {selectedCustomer.ltv}</p>
-                                </div>
-                                <div className="w-px bg-slate-100 h-10"></div>
-                                <div className="text-center px-2">
-                                    <p className="text-xs text-slate-400 font-bold uppercase">Visitas</p>
-                                    <p className="text-lg font-bold text-slate-800">{selectedCustomer.totalVisits}</p>
-                                </div>
+                            <div className="text-center px-2">
+                                <p className="text-[10px] text-slate-400 font-bold uppercase">Visitas</p>
+                                <p className="text-lg font-bold text-slate-800">{selectedCustomer.totalVisits}</p>
                             </div>
                         </div>
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-                        {/* Technical Notes Section */}
                         <div className="space-y-4">
-                            <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                                <FileText size={18} className="text-blue-500" /> Notas Técnicas
-                            </h3>
-                            
+                            <h3 className="font-bold text-slate-800 flex items-center gap-2"><FileText size={18} className="text-blue-500" /> Notas Técnicas</h3>
                             <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
-                                <textarea 
-                                    className="w-full bg-transparent border-none focus:ring-0 text-sm text-slate-700 placeholder:text-slate-400 resize-none"
-                                    rows={2}
-                                    placeholder="Adicionar nova observação (ex: Pente 2 na lateral, prefere barba quadrada...)"
-                                    value={newNote}
-                                    onChange={(e) => setNewNote(e.target.value)}
-                                ></textarea>
-                                <div className="flex justify-between items-center mt-2 border-t border-amber-100/50 pt-2">
-                                    <span className="text-[10px] text-amber-700 font-bold uppercase tracking-wide">Visível apenas para equipe</span>
-                                    <button 
-                                        onClick={handleSaveNote}
-                                        disabled={!newNote.trim()}
-                                        className="bg-amber-500 text-white px-3 py-1 rounded-lg text-xs font-bold hover:bg-amber-600 disabled:opacity-50 transition-colors flex items-center gap-1"
-                                    >
-                                        <Save size={12} /> Salvar Nota
-                                    </button>
-                                </div>
+                                <textarea className="w-full bg-transparent border-none focus:ring-0 text-sm text-slate-700 placeholder:text-slate-400 resize-none" rows={2} placeholder="Preferências do cliente (ex: Pente 2 baixo)..." value={newNote} onChange={(e) => setNewNote(e.target.value)}></textarea>
+                                <div className="flex justify-end mt-2"><button onClick={handleSave} disabled={!newNote.trim()} className="bg-amber-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-600 disabled:opacity-50 transition-colors">Salvar Nota</button></div>
                             </div>
-
                             <div className="space-y-3">
                                 {customerNotes.map(note => (
-                                    <div key={note.id} className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm relative group hover:shadow-md transition-all">
-                                        <p className="text-sm text-slate-700 leading-relaxed mb-2">{note.note}</p>
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            {note.tags.map(tag => (
-                                                <span key={tag} className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-medium border border-slate-200">
-                                                    #{tag}
-                                                </span>
-                                            ))}
-                                        </div>
-                                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-50 text-xs text-slate-400">
-                                            <span className="flex items-center gap-1"><UserIcon size={10} /> {MOCK_USERS.find(u => u.id === note.barberId)?.name}</span>
-                                            <span className="flex items-center gap-1"><Clock size={10} /> {new Date(note.date).toLocaleDateString('pt-BR')}</span>
-                                        </div>
+                                    <div key={note.id} className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm">
+                                        <p className="text-sm text-slate-700 mb-2">{note.note}</p>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase">{new Date(note.date).toLocaleDateString('pt-BR')}</p>
                                     </div>
                                 ))}
-                                {customerNotes.length === 0 && (
-                                    <p className="text-center text-slate-400 text-sm py-4 italic">Nenhuma nota técnica registrada.</p>
-                                )}
                             </div>
                         </div>
 
-                        {/* History Timeline */}
                         <div className="pt-6 border-t border-slate-100">
-                             <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-4">
-                                <History size={18} className="text-purple-500" /> Histórico de Visitas
-                            </h3>
-                            <div className="space-y-4">
-                                {selectedCustomer.history.map(appt => {
-                                    const service = SERVICES.find(s => s.id === appt.serviceId);
-                                    const barber = MOCK_USERS.find(u => u.id === appt.barberId);
-                                    return (
-                                        <div key={appt.id} className="flex gap-4 relative">
-                                            {/* Timeline Line */}
-                                            <div className="absolute top-0 bottom-0 left-[19px] w-0.5 bg-slate-100 -z-10"></div>
-                                            
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 z-10 border-4 border-white ${
-                                                appt.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'
-                                            }`}>
-                                                <Scissors size={16} />
-                                            </div>
-                                            
-                                            <div className="bg-white border border-slate-100 rounded-xl p-3 shadow-sm flex-1">
-                                                <div className="flex justify-between items-start">
-                                                    <div>
-                                                        <p className="font-bold text-slate-800 text-sm">{service?.name}</p>
-                                                        <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                                                            <UserIcon size={10} /> {barber?.name}
-                                                        </p>
-                                                    </div>
-                                                    <span className="text-xs font-bold text-slate-900">R$ {service?.price}</span>
-                                                </div>
-                                                <div className="mt-2 text-[10px] text-slate-400 font-medium bg-slate-50 inline-block px-2 py-1 rounded">
-                                                    {new Date(appt.startTime).toLocaleDateString('pt-BR')} • {new Date(appt.startTime).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                                {selectedCustomer.history.length === 0 && (
-                                    <p className="text-sm text-slate-400 italic">Sem histórico de visitas.</p>
-                                )}
-                            </div>
+                             <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-4"><History size={18} className="text-purple-500" /> Histórico de Visitas</h3>
+                             <div className="space-y-3">
+                                 {selectedCustomer.history.map(appt => (
+                                     <div key={appt.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                         <div>
+                                             <div className="flex items-center gap-2 mb-1">
+                                                <p className="text-sm font-bold text-slate-800">{services.find(s=>s.id===appt.serviceId)?.name}</p>
+                                                {appt.paymentMethod === 'APP' ? <Smartphone size={12} className="text-emerald-500" /> : <CreditCard size={12} className="text-blue-500" />}
+                                             </div>
+                                             <p className="text-[10px] text-slate-400">{new Date(appt.startTime).toLocaleDateString('pt-BR')} às {new Date(appt.startTime).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</p>
+                                         </div>
+                                         <div className="flex flex-col items-end gap-1">
+                                             <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${appt.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>{appt.status}</span>
+                                             {appt.paymentMethod === 'APP' && <span className="text-[8px] font-bold text-emerald-600 uppercase">Pago via App</span>}
+                                         </div>
+                                     </div>
+                                 ))}
+                             </div>
                         </div>
                     </div>
                 </div>
             ) : (
-                <div className="flex flex-col items-center justify-center h-full text-slate-400 p-8 text-center">
-                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                        <UserIcon size={32} className="text-slate-300" />
-                    </div>
-                    <p className="font-medium">Selecione um cliente para ver a ficha completa.</p>
-                    <p className="text-sm mt-1">Clique na lista ao lado para começar.</p>
+                <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                    <p>Selecione um cliente para ver os detalhes.</p>
                 </div>
             )}
         </div>

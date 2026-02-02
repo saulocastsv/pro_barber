@@ -3,60 +3,71 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BarberPro SaaS</title>
+    <title>Barvo - Gestão de Barbearia</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
+            colors: {
+              brand: {
+                dark: '#081E26',      // Navy Teal Profundo
+                light: '#B8D0D9',     // Ice Blue
+                gray: '#D9D9D9',      // Cinza Fundo
+                midGray: '#737373',   // Cinza Texto
+                black: '#0D0D0D',     // Preto Títulos
+              },
+            },
+            animation: {
+              'fade-in': 'fadeInUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
+            },
+          }
+        }
+      }
+    </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; }
+        body { 
+          font-family: 'Inter', sans-serif;
+          background-color: #081E26; 
+          margin: 0;
+        }
         
-        /* Animação suave para entrada de elementos - Refinada */
         .animate-fade-in { 
             animation: fadeInUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; 
         }
         
         @keyframes fadeInUp {
-            from { 
-                opacity: 0; 
-                transform: translateY(10px) scale(0.99); 
-            }
-            to { 
-                opacity: 1; 
-                transform: translateY(0) scale(1); 
-            }
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Custom Scrollbar para áreas de rolagem */
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(0, 0, 0, 0.1);
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.2);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(255, 255, 255, 0.3);
-        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.05); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(184, 208, 217, 0.3); border-radius: 10px; }
     </style>
-  <script type="importmap">
+    <script type="importmap">
 {
   "imports": {
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react": "https://aistudiocdn.com/react@^19.2.0",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
-    "recharts": "https://aistudiocdn.com/recharts@^3.5.0",
-    "vite": "https://aistudiocdn.com/vite@^7.2.4",
-    "path": "https://aistudiocdn.com/path@^0.12.7",
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
-    "url": "https://aistudiocdn.com/url@^0.11.4"
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.474.0",
+    "recharts": "https://aistudiocdn.com/recharts@^2.15.0",
+    "clsx": "https://aistudiocdn.com/clsx@^2.1.1",
+    "tailwind-merge": "https://aistudiocdn.com/tailwind-merge@^2.6.0",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.3",
+    "url": "https://esm.sh/url@^0.11.4",
+    "path": "https://esm.sh/path@^0.12.7"
   }
 }
 </script>
-</head>
+  </head>
   <body>
     <div id="root"></div>
   </body>

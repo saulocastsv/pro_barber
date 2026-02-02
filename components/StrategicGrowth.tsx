@@ -1,0 +1,310 @@
+
+import React, { useState } from 'react';
+import { MOCK_STRATEGIC_STATS, MOCK_USERS } from '../constants';
+import { MembershipPlan, StrategicStats, Service, User } from '../types';
+import { 
+  Award, TrendingUp, Users, Target, Activity, Zap, RefreshCw, 
+  Crown, AlertTriangle, AlertCircle, ArrowUpRight, BarChart3, Clock, 
+  DollarSign, Heart, CheckCircle, Plus, X, PieChart, 
+  Info, ChevronLeft, ArrowRight, Wallet, Scissors, Tag, Hash, Coins, Search, History, Repeat
+} from 'lucide-react';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+} from 'recharts';
+
+interface StrategicGrowthProps {
+  services: Service[];
+  plans: MembershipPlan[];
+  setPlans: React.Dispatch<React.SetStateAction<MembershipPlan[]>>;
+}
+
+export const StrategicGrowth: React.FC<StrategicGrowthProps> = ({ services, plans, setPlans }) => {
+  const [activeTab, setActiveTab] = useState<'membership' | 'subscribers' | 'analysis'>('membership');
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+  const [subscriberSearch, setSubscriberSearch] = useState('');
+  
+  const [simData, setSimData] = useState({
+    name: '',
+    price: 0,
+    servicesPerMonth: 2,
+    includedServiceIds: [] as string[],
+    includesBeard: false,
+    cac: 25
+  });
+
+  const stats = MOCK_STRATEGIC_STATS;
+  const selectedPlan = plans.find(p => p.id === selectedPlanId);
+  
+  // Mock Subscribers Report
+  const activeSubscribers = MOCK_USERS.filter(u => u.membershipId);
+
+  const handleCreatePlan = () => {
+    const newPlan: MembershipPlan = {
+      id: `plan_${Date.now()}`,
+      name: simData.name || 'Novo Plano',
+      price: simData.price || 99,
+      servicesPerMonth: simData.servicesPerMonth,
+      includedServiceIds: simData.includedServiceIds,
+      includesBeard: simData.includesBeard,
+      benefits: [`${simData.servicesPerMonth}x Serviços/mês`],
+      activeMembers: 0,
+      utilizationRate: 0,
+      revenueGenerated: 0
+    };
+    setPlans([newPlan, ...plans]);
+    setIsPlanModalOpen(false);
+  };
+
+  const toggleServiceInPlan = (id: string) => {
+    setSimData(prev => ({
+      ...prev,
+      includedServiceIds: prev.includedServiceIds.includes(id)
+        ? prev.includedServiceIds.filter(sid => sid !== id)
+        : [...prev.includedServiceIds, id]
+    }));
+  };
+
+  const MetricCard: React.FC<{title: string, value: string, trend: string, icon: React.ReactNode, color: string}> = ({
+    title, value, trend, icon, color
+  }) => (
+    <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col justify-between group hover:shadow-md transition-all">
+      <div className="flex justify-between items-start">
+        <div className={`p-3 rounded-2xl ${color}`}>{icon}</div>
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-emerald-600 bg-emerald-50">{trend}</span>
+      </div>
+      <div className="mt-4">
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{title}</p>
+        <h3 className="text-3xl font-black text-brand-dark tracking-tighter">{value}</h3>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-8 animate-fade-in pb-10">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h2 className="text-3xl font-bold text-brand-dark tracking-tight">Estratégia & Crescimento</h2>
+          <p className="text-brand-midGray mt-1 font-medium">Gestão inteligente de planos e retenção.</p>
+        </div>
+        <div className="flex bg-white p-1 rounded-2xl border border-slate-100 shadow-sm">
+          <button onClick={() => setActiveTab('membership')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'membership' ? 'bg-brand-dark text-white' : 'text-slate-400'}`}>Clubes</button>
+          <button onClick={() => setActiveTab('subscribers')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'subscribers' ? 'bg-brand-dark text-white' : 'text-slate-400'}`}>Relatório Assinantes</button>
+          <button onClick={() => setActiveTab('analysis')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'analysis' ? 'bg-brand-dark text-white' : 'text-slate-400'}`}>Análise</button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <MetricCard title="Receita Recorrente (MRR)" value={`R$ ${stats.mrr.toFixed(2)}`} trend="+15%" icon={<RefreshCw size={20} />} color="bg-blue-50 text-blue-600" />
+        <MetricCard title="Churn Rate" value={`${stats.churnRate}%`} trend="-2%" icon={<Activity size={20} />} color="bg-red-50 text-red-600" />
+        <MetricCard title="Membros Ativos" value={activeSubscribers.length.toString()} trend="+4" icon={<Users size={20} />} color="bg-emerald-50 text-emerald-600" />
+        <MetricCard title="LTV Médio" value={`R$ ${stats.clv.toFixed(0)}`} trend="+R$ 20" icon={<Target size={20} />} color="bg-amber-50 text-amber-600" />
+      </div>
+
+      {activeTab === 'membership' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {plans.map(plan => (
+                <div key={plan.id} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-brand-light/5 rounded-full blur-3xl -mr-16 -mt-16"></div>
+                    <div className="relative z-10 flex justify-between items-start">
+                        <div>
+                            <h3 className="text-2xl font-black text-brand-dark tracking-tighter">{plan.name}</h3>
+                            <p className="text-sm font-bold text-slate-400 mb-4 uppercase tracking-widest">{plan.servicesPerMonth} serviços p/ mês</p>
+                            <div className="text-3xl font-black text-brand-dark mb-6">R$ {plan.price.toFixed(2)} <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">/ mensal</span></div>
+                        </div>
+                        <div className="bg-emerald-50 text-emerald-600 px-4 py-2 rounded-2xl font-bold text-xs uppercase border border-emerald-100">
+                            {plan.activeMembers} Ativos
+                        </div>
+                    </div>
+                    <div className="pt-6 border-t border-slate-50 flex gap-2">
+                        <button onClick={() => setSelectedPlanId(plan.id)} className="flex-1 py-3 bg-brand-dark text-white rounded-xl text-xs font-bold hover:bg-black transition-all">Relatório Detalhado</button>
+                        <button className="p-3 bg-slate-100 text-slate-400 rounded-xl hover:text-brand-dark transition-all"><BarChart3 size={18}/></button>
+                    </div>
+                </div>
+            ))}
+            <button onClick={() => setIsPlanModalOpen(true)} className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2.5rem] p-8 flex flex-col items-center justify-center gap-3 text-slate-400 hover:border-brand-dark hover:text-brand-dark transition-all group">
+                <Plus size={40} className="group-hover:scale-110 transition-transform" />
+                <span className="font-bold">Criar Novo Clube Barvo</span>
+            </button>
+        </div>
+      )}
+
+      {activeTab === 'subscribers' && (
+          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden animate-fade-in">
+              <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row gap-4 justify-between items-center">
+                  <h3 className="text-xl font-bold text-brand-dark flex items-center gap-2">
+                      <Users size={20} className="text-blue-500" /> Relatório de Assinantes
+                  </h3>
+                  <div className="relative w-full md:w-64">
+                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input type="text" placeholder="Filtrar por nome..." className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm" value={subscriberSearch} onChange={e => setSubscriberSearch(e.target.value)} />
+                  </div>
+              </div>
+              <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                      <thead className="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-widest">
+                          <tr>
+                              <th className="px-6 py-4">Assinante</th>
+                              <th className="px-6 py-4">Plano</th>
+                              <th className="px-6 py-4">Ativo desde</th>
+                              <th className="px-6 py-4">Status</th>
+                              <th className="px-6 py-4 text-right">Histórico / Migração</th>
+                          </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                          {activeSubscribers.filter(s => s.name.toLowerCase().includes(subscriberSearch.toLowerCase())).map(sub => {
+                              const plan = plans.find(p => p.id === sub.membershipId);
+                              return (
+                                  <tr key={sub.id} className="hover:bg-slate-50 transition-colors">
+                                      <td className="px-6 py-4">
+                                          <div className="flex items-center gap-3">
+                                              <img src={sub.avatar} className="w-10 h-10 rounded-xl object-cover" />
+                                              <div>
+                                                  <p className="font-bold text-brand-dark text-sm">{sub.name}</p>
+                                                  <p className="text-[10px] text-slate-400">{sub.email}</p>
+                                              </div>
+                                          </div>
+                                      </td>
+                                      <td className="px-6 py-4">
+                                          <span className="font-bold text-slate-700 text-sm">{plan?.name}</span>
+                                      </td>
+                                      <td className="px-6 py-4 text-sm text-slate-500">
+                                          {sub.membershipStartDate || '12/10/2023'}
+                                      </td>
+                                      <td className="px-6 py-4">
+                                          <span className="bg-emerald-100 text-emerald-700 text-[10px] font-black px-2 py-1 rounded uppercase">Ativo</span>
+                                      </td>
+                                      <td className="px-6 py-4 text-right">
+                                          <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors group" title="Ver Migrações">
+                                              <History size={18} />
+                                          </button>
+                                      </td>
+                                  </tr>
+                              );
+                          })}
+                      </tbody>
+                  </table>
+              </div>
+          </div>
+      )}
+
+      {/* MODAL CRIADOR DE CLUBES REFINADO */}
+      {isPlanModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 transition-all duration-300">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 max-h-[90vh] flex flex-col animate-fade-in relative">
+            
+            <button 
+              onClick={() => setIsPlanModalOpen(false)} 
+              className="absolute top-6 right-6 p-3 bg-slate-100 text-slate-400 hover:text-brand-dark hover:bg-slate-200 rounded-full transition-all z-20 shadow-sm"
+            >
+              <X size={20} strokeWidth={3} />
+            </button>
+
+            <div className="p-8 md:p-10 border-b border-slate-50 bg-slate-50/50">
+              <div className="flex items-center gap-2 mb-2">
+                <Crown size={24} className="text-amber-500 fill-amber-500" />
+                <h3 className="text-2xl font-black text-brand-dark tracking-tighter">Criador de Clubes Barvo</h3>
+              </div>
+              <p className="text-slate-500 text-sm font-medium">Configure a recorrência e benefícios exclusivos para seus clientes.</p>
+            </div>
+            
+            <div className="p-8 md:p-10 overflow-y-auto space-y-8 custom-scrollbar">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-6">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Nome do Plano</label>
+                      <div className="relative">
+                        <Tag className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                        <input 
+                          type="text" placeholder="Ex: Premium Mensal" 
+                          className="w-full pl-12 pr-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:border-brand-dark focus:bg-white text-slate-900 font-bold text-lg placeholder:text-slate-300 transition-all shadow-sm" 
+                          value={simData.name} onChange={e => setSimData({...simData, name: e.target.value})}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Mensalidade (R$)</label>
+                        <div className="relative">
+                          <Coins className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                          <input 
+                            type="number" 
+                            className="w-full pl-12 pr-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:border-brand-dark focus:bg-white text-slate-900 font-bold text-lg shadow-sm" 
+                            value={simData.price || 99} onChange={e => setSimData({...simData, price: Number(e.target.value)})}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Frequência / Mês</label>
+                        <div className="relative">
+                          <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                          <input 
+                            type="number" 
+                            className="w-full pl-12 pr-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:border-brand-dark focus:bg-white text-slate-900 font-bold text-lg shadow-sm" 
+                            value={simData.servicesPerMonth} onChange={e => setSimData({...simData, servicesPerMonth: Number(e.target.value)})}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Scissors size={14} className="text-slate-400" />
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Incluso no Plano</label>
+                  </div>
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar bg-slate-50/50 p-2 rounded-2xl border border-slate-100">
+                    {services.map(s => (
+                      <button 
+                        key={s.id} 
+                        onClick={() => toggleServiceInPlan(s.id)}
+                        className={`w-full flex justify-between items-center p-3.5 rounded-xl border transition-all ${simData.includedServiceIds.includes(s.id) ? 'bg-brand-dark text-white border-brand-dark' : 'bg-white text-slate-600 border-slate-200'}`}
+                      >
+                        <div className="text-left">
+                          <p className="text-xs font-bold mb-1">{s.name}</p>
+                          <p className={`text-[10px] ${simData.includedServiceIds.includes(s.id) ? 'text-brand-light/60' : 'text-slate-400'}`}>Valor avulso: R$ {s.price}</p>
+                        </div>
+                        {simData.includedServiceIds.includes(s.id) && <CheckCircle size={18} className="text-brand-light" fill="currentColor" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-brand-light/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
+                <div className="flex items-center gap-2 mb-6 border-b border-white/10 pb-4">
+                  <TrendingUp size={18} className="text-brand-light" />
+                  <h4 className="font-black text-brand-light uppercase tracking-widest text-xs">Análise de Lucratividade</h4>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Margem</span>
+                    <span className="text-2xl font-black text-emerald-400">72%</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Custo Médio / Mês</span>
+                    <span className="text-2xl font-black text-red-400">R$ 28,00</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">LTV Projetado</span>
+                    <span className="text-2xl font-black text-blue-400">R$ 1.200</span>
+                  </div>
+                </div>
+              </div>
+
+              <button 
+                onClick={handleCreatePlan} 
+                disabled={simData.includedServiceIds.length === 0 || !simData.name}
+                className="w-full py-5 bg-brand-dark text-white font-black text-lg rounded-2xl shadow-2xl hover:bg-black transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                Ativar Clube de Assinatura
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

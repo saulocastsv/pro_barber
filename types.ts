@@ -5,6 +5,15 @@ export enum UserRole {
   CUSTOMER = 'CUSTOMER'
 }
 
+export interface UserPaymentMethod {
+  id: string;
+  type: 'CARD';
+  brand: 'visa' | 'mastercard' | 'amex';
+  last4: string;
+  expiry: string;
+  isDefault: boolean;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -13,7 +22,38 @@ export interface User {
   email?: string;
   password?: string;
   phone?: string;
-  points?: number; // Added points
+  points?: number;
+  membershipId?: string; // ID do plano ativo
+  membershipStartDate?: string;
+  membershipHistory?: {
+    planId: string;
+    date: string;
+    type: 'JOIN' | 'MIGRATE' | 'CANCEL';
+  }[];
+  paymentMethods?: UserPaymentMethod[];
+  lastVisitDate?: string;
+  healthScore?: number; // 0-100
+}
+
+export interface MembershipPlan {
+  id: string;
+  name: string;
+  price: number;
+  servicesPerMonth: number; // 0 para ilimitado
+  includedServiceIds: string[]; // Lista de IDs de serviços permitidos no plano
+  includesBeard: boolean;
+  benefits: string[];
+  activeMembers: number;
+  utilizationRate?: number; // % de uso dos serviços contratados
+  revenueGenerated?: number;
+}
+
+export interface StrategicStats {
+  mrr: number; // Monthly Recurring Revenue
+  churnRate: number;
+  avgUtilization: number; // % de ocupação das cadeiras
+  clv: number; // Customer Lifetime Value (Média)
+  revenueForecast: number;
 }
 
 export interface Service {
@@ -21,6 +61,8 @@ export interface Service {
   name: string;
   durationMinutes: number;
   price: number;
+  cost: number; // Custo de insumos/mão de obra por execução
+  margin: number; // Margem de lucro esperada em %
   description: string;
 }
 
@@ -32,6 +74,11 @@ export interface Appointment {
   serviceId: string;
   startTime: Date;
   status: 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
+  isMembershipUsage?: boolean;
+  paymentMethod?: 'APP' | 'PRESENTIAL';
+  paymentStatus?: 'PAID' | 'PENDING';
+  isRescheduled?: boolean;
+  isLate?: boolean;
 }
 
 export interface QueueItem {
@@ -47,7 +94,7 @@ export interface Transaction {
   id: string;
   date: string;
   amount: number;
-  type: 'SERVICE' | 'PRODUCT';
+  type: 'SERVICE' | 'PRODUCT' | 'MEMBERSHIP_FEE';
   description: string;
   barberId?: string;
 }
@@ -59,7 +106,6 @@ export interface BarbershopStats {
   avgTicket: number;
 }
 
-// Novos Tipos
 export interface InventoryItem {
   id: string;
   name: string;
@@ -80,52 +126,16 @@ export interface Campaign {
   content?: string;
 }
 
-// Automação de Marketing
 export interface LoyaltyAutomation {
   id: string;
   title: string;
-  triggerType: 'APPOINTMENT_COUNT' | 'BIRTHDAY';
-  triggerValue: number; // Ex: 5 (para 5º agendamento)
+  triggerType: 'APPOINTMENT_COUNT' | 'BIRTHDAY' | 'INACTIVITY';
+  triggerValue: number;
   message: string;
   active: boolean;
   channel: 'WHATSAPP' | 'EMAIL';
 }
 
-export interface LoyaltyConfig {
-  pointsPerCurrency: number;
-  minPointsToRedeem: number;
-}
-
-export interface TechnicalNote {
-  id: string;
-  customerId: string;
-  barberId: string;
-  date: string;
-  note: string;
-  tags: string[];
-}
-
-// Loja Virtual
-export interface StoreProduct {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  category: string;
-  images: string[];
-  rating: number;
-  reviewsCount: number;
-  variations?: string[]; // e.g. "100ml", "200ml", "Matte", "Brilho"
-  inStock: boolean;
-}
-
-export interface CartItem extends StoreProduct {
-  cartId: string;
-  selectedVariation?: string;
-  quantity: number;
-}
-
-// Configurações e Notificações
 export interface ShopSettings {
   shopName: string;
   address: string;
@@ -142,4 +152,39 @@ export interface Notification {
   time: string;
   read: boolean;
   type: 'INFO' | 'ALERT' | 'SUCCESS';
+}
+
+export interface CartItem extends StoreProduct {
+  cartId: string;
+  selectedVariation?: string;
+  quantity: number;
+}
+
+export interface StoreProduct {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  category: string;
+  images: string[];
+  rating: number;
+  reviewsCount: number;
+  variations?: string[];
+  inStock: boolean;
+}
+
+export interface TechnicalNote {
+  id: string;
+  customerId: string;
+  barberId: string;
+  note: string;
+  tags: string[];
+  date: string;
+}
+
+export interface BarberAvailabilityException {
+  id: string;
+  barberId: string;
+  startTime: string; // ISO ou HH:mm
+  date: string; // YYYY-MM-DD
 }

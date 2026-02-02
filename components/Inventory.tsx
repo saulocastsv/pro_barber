@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { MOCK_INVENTORY } from '../constants';
 import { Package, AlertTriangle, Search, Plus, DollarSign, Edit, Trash2, Filter, ShoppingCart, ArrowRight, X, Tag, Layers, Hash, Save, Check } from 'lucide-react';
 import { InventoryItem } from '../types';
 
-export const Inventory: React.FC = () => {
-  const [items, setItems] = useState<InventoryItem[]>(MOCK_INVENTORY);
+interface InventoryProps {
+  items: InventoryItem[];
+  setItems: React.Dispatch<React.SetStateAction<InventoryItem[]>>;
+}
+
+export const Inventory: React.FC<InventoryProps> = ({ items, setItems }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLowStock, setFilterLowStock] = useState(false);
   

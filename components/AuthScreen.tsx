@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { UserRole, User } from '../types';
 import { MOCK_USERS } from '../constants';
-import { Scissors, User as UserIcon, Lock, ChevronRight, Mail, Phone } from 'lucide-react';
+import { Scissors, Lock, ChevronRight, Mail, User as UserIcon, Zap, Briefcase } from 'lucide-react';
 
 interface AuthScreenProps {
   onLogin: (user: User) => void;
@@ -21,20 +21,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onGuestContinue
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Simulating authentication
     if (mode === 'login') {
       const user = MOCK_USERS.find(u => u.email === formData.email && u.password === formData.password);
-      if (user) {
-        onLogin(user);
-      } else {
-        alert('Credenciais inválidas! (Tente admin@barber.com / 123 ou cliente@gmail.com / 123)');
-      }
+      if (user) onLogin(user);
+      else alert('Credenciais inválidas! Use os botões de Acesso Rápido para testar.');
     } else {
-      // Mock Registration
       const newUser: User = {
         id: `new_${Date.now()}`,
-        name: formData.name,
+        name: formData.name || 'Novo Usuário',
         email: formData.email,
         phone: formData.phone,
         role: activeTab === 'pro' ? UserRole.OWNER : UserRole.CUSTOMER,
@@ -44,160 +38,152 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onGuestContinue
     }
   };
 
+  const loginAsDemo = (role: 'customer' | 'owner' | 'barber') => {
+      let demoUser;
+      if (role === 'owner') demoUser = MOCK_USERS.find(u => u.role === UserRole.OWNER);
+      else if (role === 'barber') demoUser = MOCK_USERS.find(u => u.role === UserRole.BARBER);
+      else demoUser = MOCK_USERS.find(u => u.id === 'u4'); // Cliente Teste
+      
+      if (demoUser) onLogin(demoUser);
+  };
+
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background decoration */}
+    <div className="min-h-screen bg-brand-dark flex items-center justify-center p-4 relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-          <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-blue-600 rounded-full blur-[150px] opacity-20 animate-pulse"></div>
-          <div className="absolute bottom-[0%] right-[0%] w-[40%] h-[40%] bg-amber-500 rounded-full blur-[120px] opacity-10"></div>
+          <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-brand-light/10 rounded-full blur-[120px]"></div>
+          <div className="absolute bottom-[0%] right-[0%] w-[40%] h-[40%] bg-white/5 rounded-full blur-[100px]"></div>
       </div>
 
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col md:flex-row relative z-10 animate-fade-in">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col md:flex-row relative z-10 animate-fade-in border border-white/10">
         
-        {/* Left Side: Brand & Info */}
-        <div className="md:w-5/12 bg-slate-50 p-8 md:p-12 flex flex-col justify-between border-r border-slate-100 relative overflow-hidden">
-            <div className="z-10">
+        {/* Lado Esquerdo: Marca e Acesso Rápido */}
+        <div className="md:w-5/12 bg-slate-50 p-8 md:p-12 flex flex-col justify-between border-r border-slate-100">
+            <div>
                 <div className="flex items-center gap-3 mb-8">
-                    <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-amber-600 rounded-xl flex items-center justify-center text-slate-900 shadow-lg">
-                        <Scissors size={24} strokeWidth={2.5} /> 
+                    <div className="w-12 h-12 bg-brand-dark text-brand-light rounded-xl flex items-center justify-center shadow-lg">
+                        <Scissors size={24} /> 
                     </div>
-                    <span className="text-2xl font-bold tracking-tight text-slate-900 leading-none">Barber<span className="text-amber-500">Pro</span></span>
+                    <span className="text-3xl font-bold tracking-tight text-brand-dark leading-none">Barvo</span>
                 </div>
                 
-                <h2 className="text-3xl font-bold text-slate-800 mb-4 leading-tight">
-                    {activeTab === 'customer' ? 'Agende seu corte em segundos.' : 'Gestão completa para sua barbearia.'}
+                <h2 className="text-2xl font-bold text-brand-black mb-4 leading-tight">
+                    Teste a plataforma SaaS.
                 </h2>
-                <p className="text-slate-500 leading-relaxed">
-                    {activeTab === 'customer' 
-                        ? 'Entre para acumular pontos, ver histórico e receber lembretes automáticos.' 
-                        : 'Controle agenda, financeiro, comissões e muito mais em um só lugar.'}
+                <p className="text-brand-midGray leading-relaxed font-medium mb-10">
+                    Escolha um dos perfis abaixo para testar cada nível de acesso do sistema.
                 </p>
+
+                <div className="space-y-3">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Acesso Rápido (Demo)</p>
+                    
+                    <button 
+                        onClick={() => loginAsDemo('owner')}
+                        className="w-full flex items-center gap-3 p-4 bg-brand-dark text-white rounded-2xl hover:bg-black transition-all group shadow-md"
+                    >
+                        <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center">
+                            <Zap size={20} className="text-brand-light" />
+                        </div>
+                        <div className="text-left">
+                            <span className="block font-bold text-sm">Entrar como Proprietário</span>
+                            <span className="text-[9px] text-brand-light/70 uppercase font-bold tracking-wider">Acesso Total + Relatórios</span>
+                        </div>
+                    </button>
+
+                    <button 
+                        onClick={() => loginAsDemo('barber')}
+                        className="w-full flex items-center gap-3 p-4 bg-white border border-slate-200 text-brand-dark rounded-2xl hover:bg-slate-50 transition-all group shadow-sm"
+                    >
+                        <div className="w-10 h-10 bg-brand-light/20 rounded-lg flex items-center justify-center">
+                            <Briefcase size={20} className="text-brand-dark" />
+                        </div>
+                        <div className="text-left">
+                            <span className="block font-bold text-sm">Entrar como Barbeiro</span>
+                            <span className="text-[9px] text-brand-midGray uppercase font-bold tracking-wider">Ganhos, Agenda e Fila</span>
+                        </div>
+                    </button>
+
+                    <button 
+                        onClick={() => loginAsDemo('customer')}
+                        className="w-full flex items-center gap-3 p-4 bg-white border border-slate-200 text-brand-dark rounded-2xl hover:bg-slate-50 transition-all group shadow-sm"
+                    >
+                        <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
+                            <UserIcon size={20} className="text-brand-dark" />
+                        </div>
+                        <div className="text-left">
+                            <span className="block font-bold text-sm">Entrar como Cliente</span>
+                            <span className="text-[9px] text-brand-midGray uppercase font-bold tracking-wider">Reservar e Comprar</span>
+                        </div>
+                    </button>
+                </div>
             </div>
 
-            <div className="mt-8 z-10">
-                {activeTab === 'customer' && (
-                    <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
-                        <p className="text-amber-800 text-sm font-bold mb-1">Prefere agilizar?</p>
-                        <button 
-                            onClick={onGuestContinue}
-                            className="text-amber-600 text-sm hover:underline flex items-center gap-1 font-semibold"
-                        >
-                            Agendar sem cadastro <ChevronRight size={14} />
-                        </button>
-                    </div>
-                )}
-            </div>
-
-            {/* Pattern */}
-            <div className="absolute bottom-0 right-0 opacity-5 pointer-events-none">
-                <Scissors size={200} />
+            <div className="mt-8 pt-8 border-t border-slate-200">
+                <button 
+                    onClick={onGuestContinue}
+                    className="w-full flex items-center justify-between p-4 bg-white border border-dashed border-slate-300 rounded-2xl hover:border-brand-light transition-all group"
+                >
+                    <span className="text-slate-500 font-bold text-sm group-hover:text-brand-dark">Visitante (Sem login)</span>
+                    <ChevronRight size={18} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
+                </button>
             </div>
         </div>
 
-        {/* Right Side: Form */}
-        <div className="md:w-7/12 p-8 md:p-12 bg-white">
-            {/* Tabs */}
-            <div className="flex p-1 bg-slate-100 rounded-xl mb-8 w-fit">
-                <button 
-                    onClick={() => { setActiveTab('customer'); setMode('login'); }}
-                    className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'customer' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                    Sou Cliente
-                </button>
-                <button 
-                    onClick={() => { setActiveTab('pro'); setMode('login'); }}
-                    className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'pro' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                    Sou Profissional
-                </button>
-            </div>
-
-            <h3 className="text-2xl font-bold text-slate-800 mb-6">
-                {mode === 'login' ? 'Acesse sua conta' : 'Crie sua conta grátis'}
+        {/* Lado Direito: Login Convencional */}
+        <div className="md:w-7/12 p-8 md:p-12 bg-white flex flex-col justify-center">
+            <h3 className="text-2xl font-bold text-brand-black mb-6">
+                {mode === 'login' ? 'Acesso com E-mail' : 'Crie sua conta'}
             </h3>
 
             <form onSubmit={handleSubmit} className="space-y-4">
                 {mode === 'register' && (
-                    <>
-                        <div className="relative group">
-                            <UserIcon className="absolute left-4 top-3.5 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={20} />
-                            <input 
-                                type="text" 
-                                placeholder="Seu nome completo" 
-                                className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all font-medium"
-                                value={formData.name}
-                                onChange={e => setFormData({...formData, name: e.target.value})}
-                                required
-                            />
-                        </div>
-                        <div className="relative group">
-                            <Phone className="absolute left-4 top-3.5 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={20} />
-                            <input 
-                                type="tel" 
-                                placeholder="Seu WhatsApp" 
-                                className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all font-medium"
-                                value={formData.phone}
-                                onChange={e => setFormData({...formData, phone: e.target.value})}
-                                required
-                            />
-                        </div>
-                    </>
+                    <div className="relative group">
+                        <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-midGray group-focus-within:text-brand-dark transition-colors" size={20} />
+                        <input 
+                            type="text" 
+                            placeholder="Nome" 
+                            className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-brand-light focus:bg-white outline-none transition-all text-brand-dark placeholder:text-brand-midGray/60"
+                            value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})}
+                        />
+                    </div>
                 )}
-
                 <div className="relative group">
-                    <Mail className="absolute left-4 top-3.5 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={20} />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-midGray group-focus-within:text-brand-dark transition-colors" size={20} />
                     <input 
                         type="email" 
-                        placeholder="Seu e-mail" 
-                        className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all font-medium"
-                        value={formData.email}
-                        onChange={e => setFormData({...formData, email: e.target.value})}
-                        required
+                        placeholder="E-mail" 
+                        className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-brand-light focus:bg-white outline-none transition-all text-brand-dark placeholder:text-brand-midGray/60"
+                        value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required
                     />
                 </div>
-
                 <div className="relative group">
-                    <Lock className="absolute left-4 top-3.5 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={20} />
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-midGray group-focus-within:text-brand-dark transition-colors" size={20} />
                     <input 
                         type="password" 
-                        placeholder="Sua senha" 
-                        className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all font-medium"
-                        value={formData.password}
-                        onChange={e => setFormData({...formData, password: e.target.value})}
-                        required
+                        placeholder="Senha" 
+                        className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-brand-light focus:bg-white outline-none transition-all text-brand-dark placeholder:text-brand-midGray/60"
+                        value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} required
                     />
                 </div>
 
-                <div className="pt-2">
-                    <button 
-                        type="submit"
-                        className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl hover:bg-slate-800 transition-all transform hover:-translate-y-1"
-                    >
-                        {mode === 'login' ? 'Entrar' : 'Cadastrar'}
-                    </button>
-                </div>
+                <button 
+                    type="submit"
+                    className="w-full bg-brand-dark text-white font-bold py-4 rounded-2xl shadow-xl hover:bg-brand-black transition-all transform hover:-translate-y-0.5 active:scale-95"
+                >
+                    {mode === 'login' ? 'Entrar' : 'Cadastrar'}
+                </button>
             </form>
 
-            <div className="mt-6 text-center">
-                <p className="text-slate-500 text-sm">
-                    {mode === 'login' ? 'Ainda não tem conta? ' : 'Já tem uma conta? '}
+            <div className="mt-8 text-center">
+                <p className="text-brand-midGray text-sm font-medium">
+                    {mode === 'login' ? 'Novo por aqui? ' : 'Já tem conta? '}
                     <button 
                         onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
-                        className="text-blue-600 font-bold hover:underline"
+                        className="text-brand-dark font-bold hover:underline ml-1"
                     >
-                        {mode === 'login' ? 'Cadastre-se' : 'Faça Login'}
+                        {mode === 'login' ? 'Criar conta' : 'Fazer Login'}
                     </button>
                 </p>
             </div>
-            
-            {/* Demo Hint */}
-            {mode === 'login' && (
-                <div className="mt-8 pt-6 border-t border-slate-100 text-xs text-slate-400 text-center">
-                    <p className="font-semibold mb-1">Dados de Teste (Demo):</p>
-                    <p>Admin: admin@barber.com / 123</p>
-                    <p>Cliente: cliente@gmail.com / 123</p>
-                </div>
-            )}
         </div>
       </div>
     </div>
