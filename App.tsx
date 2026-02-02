@@ -52,7 +52,9 @@ function App() {
       }
 
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+
         if (session) {
           const { data: profile } = await supabase
             .from('profiles')
@@ -74,7 +76,7 @@ function App() {
           }
         }
       } catch (err) {
-        console.warn("Auth check ignored (likely missing keys):", err);
+        console.warn("Falha silenciosa no check de auth (modo offline ativo).");
       } finally {
         setIsLoading(false);
       }
@@ -82,7 +84,7 @@ function App() {
 
     checkUser();
 
-    // Only set up listener if configured
+    // Inicia listener apenas se configurado
     if (isSupabaseConfigured()) {
       const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
         if (event === 'SIGNED_OUT') {
@@ -123,13 +125,12 @@ function App() {
         if (resInventory.data) setInventory(resInventory.data);
         if (resProfiles.data) setUsers(resProfiles.data);
       } catch (e) {
-        console.warn("Database fetch failed (demo mode enabled).");
+        console.warn("Falha ao buscar dados reais do banco.");
       }
     };
 
     fetchData();
 
-    // Setup REALTIME Channels only if configured
     if (isSupabaseConfigured()) {
       const channel = supabase
         .channel('db-changes')
@@ -189,7 +190,7 @@ function App() {
       return true;
     }
 
-    const { data, error } = await supabase.from('appointments').insert([{
+    const { error } = await supabase.from('appointments').insert([{
       barber_id: apptData.barberId,
       customer_id: apptData.customerId || currentUser?.id,
       customer_name: apptData.customerName || currentUser?.name,
@@ -198,7 +199,7 @@ function App() {
       status: 'CONFIRMED',
       payment_method: apptData.paymentMethod,
       payment_status: apptData.paymentStatus
-    }]).select();
+    }]);
 
     if (error) {
       alert("Erro ao agendar: " + error.message);
@@ -285,7 +286,7 @@ function App() {
       {!isSupabaseConfigured() && (
         <div className="mb-6 bg-amber-50 border border-amber-100 p-4 rounded-2xl flex items-center gap-4">
           <Database className="text-amber-600" />
-          <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Modo Offline: Dados não serão salvos permanentemente.</p>
+          <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Modo Offline: Credenciais não detectadas no .env</p>
         </div>
       )}
       {renderContent()}
