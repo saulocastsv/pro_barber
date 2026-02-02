@@ -7,7 +7,8 @@ interface CalendarViewProps {
   appointments: Appointment[];
   barbers: User[];
   services: Service[];
-  onAddAppointment: (appt: Partial<Appointment>) => boolean;
+  // Fix: changed from returning boolean to allowing Promise/void for async compatibility
+  onAddAppointment: (appt: Partial<Appointment>) => boolean | Promise<boolean> | void;
 }
 
 export const CalendarView: React.FC<CalendarViewProps> = ({ appointments, barbers, services, onAddAppointment }) => {

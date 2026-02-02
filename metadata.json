@@ -1,5 +1,8 @@
 {
-  "name": "Barvo SaaS",
-  "description": "A comprehensive SaaS platform for barbershop management featuring smart scheduling, walk-in queues, financial tracking, and AI-powered assistance.",
-  "requestFramePermissions": []
+  "name": "Barvo SaaS - Supabase Ready",
+  "description": "Plataforma SaaS para barbearias com persistência real via Supabase e IA Gemini.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
 }

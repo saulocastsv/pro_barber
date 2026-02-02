@@ -1,15 +1,11 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { SERVICES, MOCK_USERS } from "../constants";
+import { SERVICES } from "../constants";
 import { User, UserRole } from "../types";
 
-// Inicialização segura conforme diretrizes
-const getAiClient = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) return null;
-  return new GoogleGenAI({ apiKey });
-};
-
+/**
+ * System instruction generator based on user role
+ */
 const getSystemInstruction = (user: User | null) => {
   const baseData = `
     Dados da Barbearia Barvo:
@@ -57,16 +53,20 @@ const getSystemInstruction = (user: User | null) => {
   return "Você é um assistente geral da barbearia Barvo.";
 };
 
+/**
+ * Send message to Gemini API following the official guidelines
+ */
 export const sendMessageToGemini = async (message: string, user: User | null): Promise<string> => {
-  const ai = getAiClient();
+  // Always initialize with apiKey parameter from process.env.API_KEY as per guidelines
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  if (!ai) {
-    return "Opa! Meu sistema está em manutenção técnica. Logo volto a te ajudar! 😅";
-  }
+  // Select model based on task complexity
+  // Owners get gemini-3-pro-preview for strategic reasoning (Complex Text Task)
+  const modelName = user?.role === UserRole.OWNER ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview';
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview", 
+      model: modelName,
       contents: message,
       config: {
         systemInstruction: getSystemInstruction(user),
@@ -74,6 +74,7 @@ export const sendMessageToGemini = async (message: string, user: User | null): P
       }
     });
 
+    // Access .text property directly (correct property access)
     return response.text || "Entendi... mas não consegui formular a resposta. Pode repetir?";
   } catch (error) {
     console.error("Gemini API Error:", error);

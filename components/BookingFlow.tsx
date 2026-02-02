@@ -17,7 +17,8 @@ interface BookingFlowProps {
     customerName?: string;
   } | null;
   services: Service[];
-  onBook: (appt: Partial<Appointment>) => boolean;
+  // Fix: changed from returning boolean to allowing Promise/void for async compatibility
+  onBook: (appt: Partial<Appointment>) => boolean | Promise<boolean> | void;
   shopSettings: ShopSettings;
   allAppointments: Appointment[];
   availabilityExceptions: BarberAvailabilityException[];
