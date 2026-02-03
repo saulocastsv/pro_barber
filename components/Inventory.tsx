@@ -1,13 +1,15 @@
+
 import React, { useState } from 'react';
 import { Package, AlertTriangle, Search, Plus, DollarSign, Edit, Trash2, Filter, ShoppingCart, ArrowRight, X, Tag, Layers, Hash, Save, Check } from 'lucide-react';
 import { InventoryItem } from '../types';
 
 interface InventoryProps {
   items: InventoryItem[];
-  setItems: React.Dispatch<React.SetStateAction<InventoryItem[]>>;
+  // Changed from setSetItems to onUpdateItem callback pattern for better architectural separation
+  onUpdateItem: (item: InventoryItem, action: 'UPSERT' | 'DELETE') => void;
 }
 
-export const Inventory: React.FC<InventoryProps> = ({ items, setItems }) => {
+export const Inventory: React.FC<InventoryProps> = ({ items, onUpdateItem }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLowStock, setFilterLowStock] = useState(false);
   
@@ -49,15 +51,15 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems }) => {
       minLevel: Number(newItem.minLevel)
     };
 
-    setItems([...items, item]);
+    onUpdateItem(item, 'UPSERT');
     setIsModalOpen(false);
     setNewItem({ name: '', category: 'Cabelo', quantity: 0, price: 0, minLevel: 5 });
-    alert("Produto cadastrado com sucesso!");
   };
 
   const handleDelete = (id: string) => {
       if (window.confirm('Tem certeza que deseja excluir este item do estoque?')) {
-          setItems(items.filter(item => item.id !== id));
+          const itemToDelete = items.find(i => i.id === id);
+          if (itemToDelete) onUpdateItem(itemToDelete, 'DELETE');
       }
   };
 
@@ -73,13 +75,11 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems }) => {
 
   const saveEdit = () => {
       if (!editingId) return;
-      
-      setItems(items.map(item => {
-          if (item.id === editingId) {
-              return { ...item, ...editValues } as InventoryItem;
-          }
-          return item;
-      }));
+      const originalItem = items.find(i => i.id === editingId);
+      if (!originalItem) return;
+
+      const updatedItem = { ...originalItem, ...editValues } as InventoryItem;
+      onUpdateItem(updatedItem, 'UPSERT');
       setEditingId(null);
       setEditValues({});
   };
@@ -169,9 +169,6 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems }) => {
                               <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
                                   <div className="bg-red-500 h-full rounded-full" style={{ width: `${(item.quantity / item.minLevel) * 50}%` }}></div>
                               </div>
-                              <button className="w-full mt-3 py-1.5 bg-amber-100 text-amber-700 text-xs font-bold rounded-lg hover:bg-amber-200 transition-colors flex items-center justify-center gap-1">
-                                  <ShoppingCart size={12} /> Repor
-                              </button>
                           </div>
                       </div>
                   ))}
@@ -321,7 +318,6 @@ export const Inventory: React.FC<InventoryProps> = ({ items, setItems }) => {
         </div>
       </div>
 
-      {/* Add Item Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fade-in">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-100">

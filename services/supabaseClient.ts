@@ -1,73 +1,77 @@
 import { createClient } from '@supabase/supabase-js';
 
 /**
- * Recuperação robusta de variáveis de ambiente.
- * Tenta capturar tanto do padrão Vite (import.meta.env) quanto do padrão Node/Vercel (process.env).
+ * Utilitário extremamente robusto para capturar variáveis de ambiente.
+ * Procura em process.env, import.meta.env e tenta versões com e sem prefixo VITE_.
  */
-const getEnvVar = (key: string): string | undefined => {
-  try {
-    // @ts-ignore - Suporte para ambientes Vite
-    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
-      return import.meta.env[key];
-    }
-  } catch (e) {}
+const getEnvVar = (key: string): string => {
+  const getRawValue = (k: string): string => {
+    // 1. Tenta process.env (comum em shims de navegadores e Node)
+    try {
+      if (typeof process !== 'undefined' && process.env && process.env[k]) {
+        return process.env[k];
+      }
+    } catch (e) {}
 
-  try {
-    // Suporte para ambientes Node/SaaS tradicionais
-    if (typeof process !== 'undefined' && process.env && process.env[key]) {
-      return process.env[key];
-    }
-  } catch (e) {}
+    // 2. Tenta import.meta.env (padrão Vite)
+    try {
+      // @ts-ignore
+      if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[k]) {
+        // @ts-ignore
+        return import.meta.env[k];
+      }
+    } catch (e) {}
 
-  return undefined;
-};
+    // 3. Tenta window.env ou window.process.env (algumas plataformas injetam aqui)
+    try {
+      if (typeof window !== 'undefined') {
+        const win = window as any;
+        if (win.env?.[k]) return win.env[k];
+        if (win.process?.env?.[k]) return win.process.env[k];
+      }
+    } catch (e) {}
 
-const supabaseUrl = getEnvVar('VITE_SUPABASE_URL') || getEnvVar('SUPABASE_URL');
-const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY') || getEnvVar('SUPABASE_ANON_KEY');
-
-/**
- * Verifica se o Supabase está configurado corretamente.
- */
-export const isSupabaseConfigured = (): boolean => {
-  return !!(supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('http'));
-};
-
-/**
- * Cria um objeto Proxy que simula o comportamento do cliente Supabase 
- * para evitar erros de execução quando as chaves não estão presentes.
- */
-const createSafeProxy = (path: string[] = []): any => {
-  const func = (..._args: any[]) => {
-    const methodName = path[path.length - 1];
-
-    // Retorna estruturas compatíveis para métodos comuns
-    if (methodName === 'onAuthStateChange') {
-      return { data: { subscription: { unsubscribe: () => {} } } };
-    }
-    if (['channel', 'on', 'subscribe', 'from', 'select', 'insert', 'update', 'eq', 'single'].includes(methodName)) {
-      return createSafeProxy([...path, 'chained']);
-    }
-    if (methodName === 'removeChannel') {
-      return Promise.resolve();
-    }
-
-    // Retorna uma Promise resolvida com dados nulos para métodos assíncronos
-    return Promise.resolve({ data: null, error: null });
+    return '';
   };
 
-  return new Proxy(func, {
-    get: (_target, prop) => {
-      if (typeof prop === 'symbol' || prop === 'then') return undefined;
-      return createSafeProxy([...path, String(prop)]);
-    }
-  });
+  let value = getRawValue(key);
+
+  // Fallback: se a chave tem VITE_ e não achou, tenta sem VITE_
+  if (!value && key.startsWith('VITE_')) {
+    value = getRawValue(key.replace('VITE_', ''));
+  }
+
+  // Fallback invertido: se a chave NÃO tem VITE_ e não achou, tenta com VITE_
+  if (!value && !key.startsWith('VITE_')) {
+    value = getRawValue(`VITE_${key}`);
+  }
+
+  return typeof value === 'string' ? value.trim() : '';
 };
 
-// Inicializa o cliente real ou o proxy de segurança
-export const supabase = isSupabaseConfigured()
-  ? createClient(supabaseUrl!, supabaseAnonKey!)
-  : createSafeProxy(['supabase']);
+const supabaseUrl = getEnvVar('VITE_SUPABASE_URL');
+const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY');
 
+/**
+ * Verifica se as configurações básicas existem e parecem válidas.
+ */
+export const isSupabaseConfigured = (): boolean => {
+  const hasUrl = !!supabaseUrl && supabaseUrl.startsWith('http');
+  const hasKey = !!supabaseAnonKey && supabaseAnonKey.length > 10; 
+  return hasUrl && hasKey;
+};
+
+// Inicialização com Fallback para evitar crash imediato
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder-url-missing.supabase.co', 
+  supabaseAnonKey || 'placeholder-key-missing'
+);
+
+// Logging para depuração silenciosa (visível no console do dev)
 if (!isSupabaseConfigured()) {
-  console.info('ℹ️ Barvo: Supabase não configurado. Operando em modo de demonstração local.');
+  console.group('🛠️ BARVO Debug: Supabase Configuration');
+  console.warn('Configuração incompleta detectada.');
+  console.log('URL:', supabaseUrl ? 'OK' : 'MISSING');
+  console.log('Key:', supabaseAnonKey ? 'OK (Length: ' + supabaseAnonKey.length + ')' : 'MISSING');
+  console.groupEnd();
 }

@@ -18,6 +18,22 @@ export interface UserPaymentMethod {
   isDefault: boolean;
 }
 
+export interface Barbershop {
+  id: string;
+  name: string;
+  slug: string;
+  address: string;
+  phone: string;
+  ownerId: string;
+  logo?: string;
+  banner?: string;
+  description?: string;
+  openingHours: { start: string; end: string };
+  workingDays: string[];
+  defaultCommissionRate: number;
+  createdAt: string;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -26,6 +42,7 @@ export interface User {
   email?: string;
   password?: string;
   phone?: string;
+  barbershopId?: string; // ID da barbearia a qual o usuário pertence
   points?: number;
   membershipId?: string;
   membershipStartDate?: string;

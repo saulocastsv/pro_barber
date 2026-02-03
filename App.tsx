@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Layout } from './components/Layout';
 import { Dashboard } from './components/Dashboard';
@@ -21,15 +22,16 @@ import { Shop } from './components/Shop';
 import { OrderManagement } from './components/OrderManagement';
 import { CustomerOrders } from './components/CustomerOrders';
 import { supabase, isSupabaseConfigured } from './services/supabaseClient';
-import { User, UserRole, Appointment, Service, InventoryItem, Transaction, Order, ShopSettings, OrderStatus, TechnicalNote, BarberAvailabilityException, LoyaltyAutomation, MembershipPlan } from './types';
+import { User, UserRole, Appointment, Service, InventoryItem, Transaction, Order, ShopSettings, OrderStatus, TechnicalNote, BarberAvailabilityException, LoyaltyAutomation, MembershipPlan, Barbershop, CartItem } from './types';
 import { MOCK_STATS, MOCK_SHOP_SETTINGS, MOCK_APPOINTMENTS, SERVICES, MOCK_INVENTORY, MOCK_TRANSACTIONS, MOCK_USERS, MOCK_NOTES, MOCK_AUTOMATIONS, MOCK_MEMBERSHIP_PLANS } from './constants';
-import { AlertCircle, Database } from 'lucide-react';
+import { Database, Wifi, WifiOff } from 'lucide-react';
 
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [currentView, setCurrentView] = useState('dashboard');
   const [isLoading, setIsLoading] = useState(true);
+  const [dbStatus, setDbStatus] = useState<'connected' | 'offline' | 'error'>('offline');
   
   // Database States
   const [appointments, setAppointments] = useState<Appointment[]>(MOCK_APPOINTMENTS);
@@ -42,73 +44,93 @@ function App() {
   const [plans, setPlans] = useState<MembershipPlan[]>(MOCK_MEMBERSHIP_PLANS);
   const [notes, setNotes] = useState<TechnicalNote[]>(MOCK_NOTES);
   const [shopSettings, setShopSettings] = useState<ShopSettings>(MOCK_SHOP_SETTINGS);
+  const [barbershop, setBarbershop] = useState<Barbershop | null>(null);
 
-  // 1. Initial Load & Auth Check
-  useEffect(() => {
-    const checkUser = async () => {
-      if (!isSupabaseConfigured()) {
-        setIsLoading(false);
-        return;
+  const loadUserProfile = useCallback(async (userId: string, email: string) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') throw error;
+
+      if (profile) {
+        setCurrentUser({
+          ...profile,
+          name: profile.name || profile.full_name || 'Usuário',
+          barbershopId: profile.barbershop_id,
+          email: email
+        });
+      } else {
+        setCurrentUser({
+          id: userId,
+          name: 'Usuário',
+          role: UserRole.CUSTOMER,
+          avatar: `https://picsum.photos/seed/${userId}/100/100`,
+          email: email,
+          points: 0
+        });
       }
-
-      try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) throw sessionError;
-
-        if (session) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          
-          if (profile) setCurrentUser(profile as User);
-          else {
-            const newProfile: User = {
-              id: session.user.id,
-              name: session.user.user_metadata?.full_name || 'Usuário',
-              role: (session.user.user_metadata?.role as UserRole) || UserRole.CUSTOMER,
-              avatar: session.user.user_metadata?.avatar_url || `https://picsum.photos/seed/${session.user.id}/100/100`,
-              email: session.user.email,
-              points: 0
-            };
-            setCurrentUser(newProfile);
-          }
-        }
-      } catch (err) {
-        console.warn("Falha silenciosa no check de auth (modo offline ativo).");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkUser();
-
-    // Inicia listener apenas se configurado
-    if (isSupabaseConfigured()) {
-      const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_OUT') {
-          setCurrentUser(null);
-          setIsGuest(false);
-        } else if (event === 'SIGNED_IN' && session) {
-          checkUser();
-        }
-      });
-      return () => authListener.subscription.unsubscribe();
+      setDbStatus('connected');
+    } catch (err) {
+      console.warn("Erro ao carregar perfil:", err);
+      setDbStatus('error');
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
-  // 2. Load Data and Setup Realtime Subscriptions
+  useEffect(() => {
+    if (!isSupabaseConfigured()) {
+      setIsLoading(false);
+      setDbStatus('offline');
+      return;
+    }
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        loadUserProfile(session.user.id, session.user.email || '');
+      } else {
+        setIsLoading(false);
+        setDbStatus('connected');
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        loadUserProfile(session.user.id, session.user.email || '');
+      } else if (event === 'SIGNED_OUT') {
+        setCurrentUser(null);
+        setIsGuest(false);
+        setBarbershop(null);
+        setCurrentView('dashboard');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [loadUserProfile]);
+
   useEffect(() => {
     if (!isSupabaseConfigured() || (!currentUser && !isGuest)) return;
 
     const fetchData = async () => {
       try {
-        const [resServices, resAppts, resInventory, resProfiles] = await Promise.all([
+        let shopQuery = null;
+        if (currentUser?.barbershopId) {
+            shopQuery = supabase.from('barbershops').select('*').eq('id', currentUser.barbershopId).single();
+        } else if (currentUser?.role === UserRole.OWNER) {
+            shopQuery = supabase.from('barbershops').select('*').eq('owner_id', currentUser.id).single();
+        }
+
+        const [resServices, resAppts, resInventory, resProfiles, resShop, resOrders] = await Promise.all([
           supabase.from('services').select('*'),
           supabase.from('appointments').select('*'),
           supabase.from('inventory').select('*'),
-          supabase.from('profiles').select('*')
+          supabase.from('profiles').select('*'),
+          shopQuery || Promise.resolve({ data: null }),
+          supabase.from('orders').select('*')
         ]);
 
         if (resServices.data) setServices(resServices.data);
@@ -122,53 +144,110 @@ function App() {
             customerName: a.customer_name
           })));
         }
-        if (resInventory.data) setInventory(resInventory.data);
-        if (resProfiles.data) setUsers(resProfiles.data);
+        if (resInventory.data) {
+            // Map DB columns (snake_case) to App types (camelCase)
+            setInventory(resInventory.data.map((i: any) => ({
+                id: i.id,
+                name: i.name,
+                quantity: i.quantity,
+                price: i.price,
+                minLevel: i.min_level || i.minLevel || 0, // Fallback support
+                category: i.category
+            })));
+        }
+        if (resProfiles.data) setUsers(resProfiles.data.map((p: any) => ({
+            ...p,
+            name: p.name || p.full_name || 'Usuário',
+            barbershopId: p.barbershop_id
+        })));
+        
+        if (resOrders.data) {
+             setOrders(resOrders.data.map((o: any) => ({
+                ...o,
+                items: o.items || [], // Ensure items is array
+                createdAt: o.created_at,
+                totalAmount: o.total_amount,
+                customerName: o.customer_name,
+                customerId: o.customer_id,
+                deliveryMethod: o.delivery_method,
+                paymentMethod: o.payment_method
+             })));
+        }
+        
+        if (resShop?.data) {
+            const shop = resShop.data as Barbershop;
+            setBarbershop(shop);
+            setShopSettings({
+                shopName: shop.name,
+                address: shop.address || 'Endereço não configurado',
+                phone: shop.phone || '(00) 00000-0000',
+                openingHours: shop.openingHours || { start: '09:00', end: '19:00' },
+                workingDays: shop.workingDays || ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'],
+                defaultCommissionRate: shop.defaultCommissionRate
+            });
+        }
       } catch (e) {
-        console.warn("Falha ao buscar dados reais do banco.");
+        console.warn("Erro ao buscar dados do negócio.");
       }
     };
 
     fetchData();
 
-    if (isSupabaseConfigured()) {
-      const channel = supabase
-        .channel('db-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, (payload) => {
-          if (payload.eventType === 'INSERT') {
-            const newAppt = {
-              ...payload.new,
-              startTime: new Date(payload.new.start_time),
-              barberId: payload.new.barber_id,
-              serviceId: payload.new.service_id,
-              customerId: payload.new.customer_id,
-              customerName: payload.new.customer_name
-            } as Appointment;
-            setAppointments(prev => [...prev.filter(a => a.id !== newAppt.id), newAppt]);
-          } else if (payload.eventType === 'UPDATE') {
-            setAppointments(prev => prev.map(a => a.id === payload.new.id ? {
-              ...payload.new,
-              startTime: new Date(payload.new.start_time),
-              barberId: payload.new.barber_id,
-              serviceId: payload.new.service_id,
-              customerId: payload.new.customer_id,
-              customerName: payload.new.customer_name
-            } as Appointment : a));
-          } else if (payload.eventType === 'DELETE') {
-            setAppointments(prev => prev.filter(a => a.id !== payload.old.id));
-          }
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, (payload) => {
-          if (payload.eventType === 'INSERT') setInventory(prev => [...prev, payload.new as InventoryItem]);
-          if (payload.eventType === 'UPDATE') setInventory(prev => prev.map(i => i.id === payload.new.id ? payload.new as InventoryItem : i));
-          if (payload.eventType === 'DELETE') setInventory(prev => prev.filter(i => i.id !== payload.old.id));
-        })
-        .subscribe();
+    // Canais de Realtime
+    const apptChannel = supabase
+      .channel('appointments-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const newAppt = {
+            ...payload.new,
+            startTime: new Date(payload.new.start_time),
+            barberId: payload.new.barber_id,
+            serviceId: payload.new.service_id,
+            customerId: payload.new.customer_id,
+            customerName: payload.new.customer_name
+          } as Appointment;
+          setAppointments(prev => [...prev.filter(a => a.id !== newAppt.id), newAppt]);
+        } else if (payload.eventType === 'UPDATE') {
+          setAppointments(prev => prev.map(a => a.id === payload.new.id ? {
+            ...payload.new,
+            startTime: new Date(payload.new.start_time),
+            barberId: payload.new.barber_id,
+            serviceId: payload.new.service_id,
+            customerId: payload.new.customer_id,
+            customerName: payload.new.customer_name
+          } as Appointment : a));
+        }
+      })
+      .subscribe();
 
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
+    const invChannel = supabase
+      .channel('inventory-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, (payload) => {
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+              const newItem = {
+                  id: payload.new.id,
+                  name: payload.new.name,
+                  quantity: payload.new.quantity,
+                  price: payload.new.price,
+                  minLevel: payload.new.min_level || 0,
+                  category: payload.new.category
+              } as InventoryItem;
+              
+              setInventory(prev => {
+                  const exists = prev.find(i => i.id === newItem.id);
+                  if (exists) return prev.map(i => i.id === newItem.id ? newItem : i);
+                  return [...prev, newItem];
+              });
+          } else if (payload.eventType === 'DELETE') {
+              setInventory(prev => prev.filter(i => i.id !== payload.old.id));
+          }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(apptChannel);
+      supabase.removeChannel(invChannel);
+    };
   }, [currentUser, isGuest]);
 
   const handleLogin = (user: User) => {
@@ -181,6 +260,8 @@ function App() {
     if (isSupabaseConfigured()) await supabase.auth.signOut();
     setCurrentUser(null);
     setIsGuest(false);
+    setBarbershop(null);
+    setCurrentView('dashboard');
   };
 
   const handleAddAppointment = async (apptData: Partial<Appointment>) => {
@@ -198,7 +279,8 @@ function App() {
       start_time: apptData.startTime?.toISOString(),
       status: 'CONFIRMED',
       payment_method: apptData.paymentMethod,
-      payment_status: apptData.paymentStatus
+      payment_status: apptData.paymentStatus,
+      barbershop_id: barbershop?.id
     }]);
 
     if (error) {
@@ -216,10 +298,153 @@ function App() {
     }
   };
 
-  if (isLoading) return <div className="h-screen flex items-center justify-center bg-brand-dark text-white font-black animate-pulse">BARVO...</div>;
+  /**
+   * Lógica de Compra: Salva Pedido, Baixa Estoque, Pontua Cliente
+   */
+  const handlePurchase = async (cartItems: CartItem[], totalPaid: number, pointsUsed: boolean, pointsDiscount: number) => {
+      const orderData = {
+          customer_id: currentUser?.id,
+          customer_name: currentUser?.name || 'Cliente',
+          items: cartItems,
+          total_amount: totalPaid,
+          status: 'PAID' as OrderStatus,
+          payment_method: 'CREDIT_CARD', // Simplification
+          delivery_method: 'PICKUP',
+          barbershop_id: barbershop?.id,
+          created_at: new Date().toISOString()
+      };
+
+      if (!isSupabaseConfigured()) {
+          const mockOrder: Order = { ...orderData, id: `ord_${Date.now()}`, createdAt: orderData.created_at } as any;
+          setOrders(prev => [mockOrder, ...prev]);
+          // Mock Inventory Update
+          const newInv = [...inventory];
+          cartItems.forEach(cartItem => {
+              const invItem = newInv.find(i => i.id === cartItem.id.replace('inv_', ''));
+              if (invItem) invItem.quantity = Math.max(0, invItem.quantity - cartItem.quantity);
+          });
+          setInventory(newInv);
+          return true;
+      }
+
+      try {
+          // 1. Salvar Pedido
+          const { data: order, error: orderError } = await supabase
+              .from('orders')
+              .insert([orderData])
+              .select()
+              .single();
+
+          if (orderError) throw orderError;
+
+          // 2. Atualizar Estoque (Iterativo para simplicidade, idealmente uma RPC transaction)
+          for (const item of cartItems) {
+              if (item.id.startsWith('inv_')) {
+                  const invId = item.id.replace('inv_', '');
+                  const currentInv = inventory.find(i => i.id === invId);
+                  if (currentInv) {
+                      await supabase.from('inventory')
+                          .update({ quantity: Math.max(0, currentInv.quantity - item.quantity) })
+                          .eq('id', invId);
+                  }
+              }
+          }
+
+          // 3. Atualizar Pontos
+          if (currentUser) {
+              const pointsEarned = Math.floor(totalPaid); // 1 ponto por real
+              const pointsSpent = pointsUsed ? (pointsDiscount * 10) : 0; // Ex: 10 pts = 1 real
+              const newPoints = (currentUser.points || 0) + pointsEarned - pointsSpent;
+              
+              await supabase.from('profiles').update({ points: newPoints }).eq('id', currentUser.id);
+              setCurrentUser({ ...currentUser, points: newPoints });
+          }
+
+          // Atualizar estado local
+          setOrders(prev => [{...order, items: cartItems} as any, ...prev]);
+          
+          return true;
+      } catch (error: any) {
+          console.error("Erro na compra:", error);
+          alert("Erro ao processar compra: " + error.message);
+          return false;
+      }
+  };
+
+  /**
+   * Lógica de Atualização de Estoque (Adicionar/Editar/Excluir)
+   */
+  const handleUpdateInventory = async (item: InventoryItem, action: 'UPSERT' | 'DELETE') => {
+      if (!isSupabaseConfigured()) {
+          if (action === 'DELETE') {
+              setInventory(prev => prev.filter(i => i.id !== item.id));
+          } else {
+              setInventory(prev => {
+                  const exists = prev.find(i => i.id === item.id);
+                  if (exists) return prev.map(i => i.id === item.id ? item : i);
+                  return [...prev, item];
+              });
+          }
+          return;
+      }
+
+      try {
+          if (action === 'DELETE') {
+              await supabase.from('inventory').delete().eq('id', item.id);
+              // Optimistic update handled by realtime or fetch, but safe to keep locally too
+              setInventory(prev => prev.filter(i => i.id !== item.id));
+          } else {
+              // Prepare payload mapping types to DB columns
+              const payload: any = { 
+                  name: item.name,
+                  quantity: item.quantity,
+                  price: item.price,
+                  min_level: item.minLevel,
+                  category: item.category,
+                  barbershop_id: barbershop?.id 
+              };
+              
+              // Only add ID if it's not a new temporary one
+              if (!item.id.startsWith('new_')) {
+                  payload.id = item.id;
+              }
+
+              const { data, error } = await supabase.from('inventory').upsert([payload]).select().single();
+              if (error) throw error;
+              
+              // Ensure we update local state properly, especially for new items getting a real ID
+              if (data) {
+                  const mappedData: InventoryItem = {
+                      id: data.id,
+                      name: data.name,
+                      quantity: data.quantity,
+                      price: data.price,
+                      minLevel: data.min_level,
+                      category: data.category
+                  };
+
+                  setInventory(prev => {
+                      const exists = prev.find(i => i.id === item.id || i.id === mappedData.id);
+                      if (exists) return prev.map(i => i.id === exists.id ? mappedData : i);
+                      return [...prev, mappedData];
+                  });
+              }
+          }
+      } catch (error: any) {
+          console.error("Erro estoque:", error);
+          alert("Erro ao atualizar estoque.");
+      }
+  };
+
+  if (isLoading) return <div className="h-screen flex items-center justify-center bg-brand-dark text-white font-black animate-pulse">CARREGANDO BARVO...</div>;
 
   if (!currentUser && !isGuest) {
     return <AuthScreen onLogin={handleLogin} onGuestContinue={() => { setIsGuest(true); setCurrentView('booking'); }} />;
+  }
+
+  // Proteção para Guest Mode
+  if (isGuest && currentView !== 'booking' && currentView !== 'shop') {
+      setCurrentView('booking');
   }
 
   const renderContent = () => {
@@ -244,10 +469,10 @@ function App() {
         return <QueueSystem initialQueue={[]} services={services} />;
 
       case 'shop':
-        return <Shop currentUser={currentUser!} inventory={inventory} onPurchase={() => true} />;
+        return <Shop currentUser={currentUser!} inventory={inventory} onPurchase={handlePurchase} />;
 
       case 'inventory':
-        return <Inventory items={inventory} setItems={setInventory} />;
+        return <Inventory items={inventory} onUpdateItem={handleUpdateInventory} />;
 
       case 'financials':
         return <Financials transactions={transactions} />;
@@ -283,12 +508,27 @@ function App() {
 
   return (
     <Layout currentUser={currentUser} currentView={currentView} onNavigate={setCurrentView} onLogout={handleLogout}>
-      {!isSupabaseConfigured() && (
-        <div className="mb-6 bg-amber-50 border border-amber-100 p-4 rounded-2xl flex items-center gap-4">
-          <Database className="text-amber-600" />
-          <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Modo Offline: Credenciais não detectadas no .env</p>
-        </div>
-      )}
+      <div className="mb-6 flex flex-col md:flex-row gap-4">
+        {!isSupabaseConfigured() ? (
+            <div className="flex-1 bg-amber-50 border border-amber-100 p-4 rounded-2xl flex items-center gap-4">
+                <Database className="text-amber-600" />
+                <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Modo Demo: Verifique seu arquivo .env</p>
+            </div>
+        ) : (
+            <div className={`flex-1 p-4 rounded-2xl flex items-center gap-4 border ${dbStatus === 'connected' ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
+                {dbStatus === 'connected' ? <Wifi className="text-emerald-600" /> : <WifiOff className="text-red-600" />}
+                <p className={`text-[10px] font-black uppercase tracking-widest ${dbStatus === 'connected' ? 'text-emerald-700' : 'text-red-700'}`}>
+                    Cloud: {dbStatus === 'connected' ? 'Supabase Conectado' : 'Erro de Conexão'}
+                </p>
+            </div>
+        )}
+        {barbershop && (
+            <div className="bg-brand-dark text-brand-light p-4 rounded-2xl flex items-center gap-4 shadow-lg">
+                <Database size={18} />
+                <p className="text-[10px] font-black uppercase tracking-widest">Barbearia Ativa: {barbershop.name}</p>
+            </div>
+        )}
+      </div>
       {renderContent()}
       <ChatAssistant currentUser={currentUser} />
     </Layout>

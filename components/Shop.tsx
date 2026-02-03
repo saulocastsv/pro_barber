@@ -11,7 +11,7 @@ import {
 interface ShopProps {
   currentUser: User;
   inventory: InventoryItem[];
-  onPurchase: (cartItems: CartItem[], totalPaid: number, pointsUsed: boolean, pointsDiscount: number) => boolean;
+  onPurchase: (cartItems: CartItem[], totalPaid: number, pointsUsed: boolean, pointsDiscount: number) => boolean | Promise<boolean>;
 }
 
 export const Shop: React.FC<ShopProps> = ({ currentUser, inventory, onPurchase }) => {
@@ -123,27 +123,33 @@ export const Shop: React.FC<ShopProps> = ({ currentUser, inventory, onPurchase }
     }
   };
 
-  const handleFinalizePurchase = () => {
+  const handleFinalizePurchase = async () => {
       setIsProcessingCheckout(true);
       const pointsDiscount = usePoints ? discount : 0;
-      const success = onPurchase(cart, finalTotal, usePoints, pointsDiscount);
+      
+      try {
+        const success = await Promise.resolve(onPurchase(cart, finalTotal, usePoints, pointsDiscount));
 
-      if (!success) {
-          setIsProcessingCheckout(false);
-          return;
+        if (!success) {
+            setIsProcessingCheckout(false);
+            return;
+        }
+
+        const pointsEarned = !usePoints ? Math.floor(finalTotal * LOYALTY_RULES.POINTS_PER_CURRENCY) : 0;
+
+        setTimeout(() => {
+            setIsProcessingCheckout(false);
+            setIsCheckoutModalOpen(false);
+            setLastOrderDetails({ total: finalTotal, pointsEarned });
+            setShowSuccessModal(true);
+            setCart([]); 
+            setUsePoints(false);
+            setPaymentMode('SAVED_CARD');
+        }, 2000);
+      } catch (error) {
+        console.error("Purchase failed", error);
+        setIsProcessingCheckout(false);
       }
-
-      const pointsEarned = !usePoints ? Math.floor(finalTotal * LOYALTY_RULES.POINTS_PER_CURRENCY) : 0;
-
-      setTimeout(() => {
-          setIsProcessingCheckout(false);
-          setIsCheckoutModalOpen(false);
-          setLastOrderDetails({ total: finalTotal, pointsEarned });
-          setShowSuccessModal(true);
-          setCart([]); 
-          setUsePoints(false);
-          setPaymentMode('SAVED_CARD');
-      }, 2000);
   };
 
   return (
