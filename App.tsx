@@ -11,7 +11,6 @@ import { BarberDashboard } from './components/BarberDashboard';
 import { CustomerDashboard } from './components/CustomerDashboard';
 import { CustomerAppointments } from './components/CustomerAppointments';
 import { ServicesManagement } from './components/ServicesManagement';
-import { StrategicGrowth } from './components/StrategicGrowth';
 import { Financials } from './components/Financials';
 import { Team } from './components/Team';
 import { Inventory } from './components/Inventory';
@@ -21,238 +20,109 @@ import { Settings } from './components/Settings';
 import { Shop } from './components/Shop';
 import { OrderManagement } from './components/OrderManagement';
 import { CustomerOrders } from './components/CustomerOrders';
+import { StrategicGrowth } from './components/StrategicGrowth';
+
 import { supabase, isSupabaseConfigured } from './services/supabaseClient';
-import { User, UserRole, Appointment, Service, InventoryItem, Transaction, Order, ShopSettings, OrderStatus, TechnicalNote, BarberAvailabilityException, LoyaltyAutomation, MembershipPlan, Barbershop, CartItem } from './types';
-import { MOCK_STATS, MOCK_SHOP_SETTINGS, MOCK_APPOINTMENTS, SERVICES, MOCK_INVENTORY, MOCK_TRANSACTIONS, MOCK_USERS, MOCK_NOTES, MOCK_AUTOMATIONS, MOCK_MEMBERSHIP_PLANS } from './constants';
-import { Database, Wifi, WifiOff } from 'lucide-react';
+import { db } from './services/databaseService';
+import { User, UserRole, Appointment, Service, InventoryItem, Order, ShopSettings, Notification, MembershipPlan } from './types';
+import { MOCK_STATS, MOCK_SHOP_SETTINGS, MOCK_MEMBERSHIP_PLANS, MOCK_NOTIFICATIONS, MOCK_TRANSACTIONS } from './constants';
+// Added RefreshCw to imports
+import { Wifi, WifiOff, AlertCircle, Scissors, Loader2, RefreshCw } from 'lucide-react';
 
 function App() {
+  // --- AUTH STATES ---
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [currentView, setCurrentView] = useState('dashboard');
   const [isLoading, setIsLoading] = useState(true);
-  const [dbStatus, setDbStatus] = useState<'connected' | 'offline' | 'error'>('offline');
   
-  // Database States
-  const [appointments, setAppointments] = useState<Appointment[]>(MOCK_APPOINTMENTS);
-  const [services, setServices] = useState<Service[]>(SERVICES);
-  const [inventory, setInventory] = useState<InventoryItem[]>(MOCK_INVENTORY);
-  const [users, setUsers] = useState<User[]>(MOCK_USERS);
-  const [transactions, setTransactions] = useState<Transaction[]>(MOCK_TRANSACTIONS);
+  // --- APP DATA STATES ---
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [automations, setAutomations] = useState<LoyaltyAutomation[]>(MOCK_AUTOMATIONS);
-  const [plans, setPlans] = useState<MembershipPlan[]>(MOCK_MEMBERSHIP_PLANS);
-  const [notes, setNotes] = useState<TechnicalNote[]>(MOCK_NOTES);
   const [shopSettings, setShopSettings] = useState<ShopSettings>(MOCK_SHOP_SETTINGS);
-  const [barbershop, setBarbershop] = useState<Barbershop | null>(null);
+  const [membershipPlans, setMembershipPlans] = useState<MembershipPlan[]>(MOCK_MEMBERSHIP_PLANS);
+  const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
 
-  const loadUserProfile = useCallback(async (userId: string, email: string) => {
+  // --- UI/STATUS STATES ---
+  const [dbStatus, setDbStatus] = useState<'connected' | 'offline'>('offline');
+  const [globalError, setGlobalError] = useState<string | null>(null);
+
+  /**
+   * Sincroniza todos os dados da barbearia atual do usuário.
+   * Utilizado no login e em ações de atualização (Refresh).
+   */
+  const syncAppData = useCallback(async (user: User) => {
+    if (!isSupabaseConfigured()) {
+        setDbStatus('offline');
+        return;
+    }
+    
     try {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      
-      if (error && error.code !== 'PGRST116') throw error;
+      setIsLoading(true);
+      const barbershopId = user.role === UserRole.OWNER 
+        ? (await db.getBarbershopByOwner(user.id))?.id 
+        : user.barbershopId;
 
-      if (profile) {
-        setCurrentUser({
-          ...profile,
-          name: profile.name || profile.full_name || 'Usuário',
-          barbershopId: profile.barbershop_id,
-          email: email
+      if (barbershopId) {
+        const [svc, appts, inv, ord, shop] = await Promise.all([
+          db.getServices(barbershopId),
+          db.getAppointments(barbershopId),
+          db.getInventory(barbershopId),
+          db.getOrders(barbershopId),
+          db.getBarbershopById(barbershopId)
+        ]);
+
+        setServices(svc);
+        setAppointments(appts);
+        setInventory(inv);
+        setOrders(ord);
+        setShopSettings({
+          shopName: shop.name,
+          address: shop.address,
+          phone: shop.phone,
+          openingHours: shop.opening_hours,
+          workingDays: shop.working_days,
+          defaultCommissionRate: shop.default_commission_rate
         });
-      } else {
-        setCurrentUser({
-          id: userId,
-          name: 'Usuário',
-          role: UserRole.CUSTOMER,
-          avatar: `https://picsum.photos/seed/${userId}/100/100`,
-          email: email,
-          points: 0
-        });
+        setDbStatus('connected');
       }
-      setDbStatus('connected');
-    } catch (err) {
-      console.warn("Erro ao carregar perfil:", err);
-      setDbStatus('error');
+    } catch (err: any) {
+      console.error("Erro na sincronização:", err);
+      setGlobalError("Falha ao sincronizar dados com o servidor.");
     } finally {
       setIsLoading(false);
     }
   }, []);
 
+  // --- EFECTS ---
+
+  // 1. Checa sessão persistente ao iniciar
   useEffect(() => {
-    if (!isSupabaseConfigured()) {
-      setIsLoading(false);
-      setDbStatus('offline');
-      return;
-    }
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        loadUserProfile(session.user.id, session.user.email || '');
-      } else {
-        setIsLoading(false);
-        setDbStatus('connected');
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        loadUserProfile(session.user.id, session.user.email || '');
-      } else if (event === 'SIGNED_OUT') {
-        setCurrentUser(null);
-        setIsGuest(false);
-        setBarbershop(null);
-        setCurrentView('dashboard');
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [loadUserProfile]);
-
-  useEffect(() => {
-    if (!isSupabaseConfigured() || (!currentUser && !isGuest)) return;
-
-    const fetchData = async () => {
-      try {
-        let shopQuery = null;
-        if (currentUser?.barbershopId) {
-            shopQuery = supabase.from('barbershops').select('*').eq('id', currentUser.barbershopId).single();
-        } else if (currentUser?.role === UserRole.OWNER) {
-            shopQuery = supabase.from('barbershops').select('*').eq('owner_id', currentUser.id).single();
-        }
-
-        const [resServices, resAppts, resInventory, resProfiles, resShop, resOrders] = await Promise.all([
-          supabase.from('services').select('*'),
-          supabase.from('appointments').select('*'),
-          supabase.from('inventory').select('*'),
-          supabase.from('profiles').select('*'),
-          shopQuery || Promise.resolve({ data: null }),
-          supabase.from('orders').select('*')
-        ]);
-
-        if (resServices.data) setServices(resServices.data);
-        if (resAppts.data) {
-          setAppointments(resAppts.data.map((a: any) => ({
-            ...a,
-            startTime: new Date(a.start_time),
-            barberId: a.barber_id,
-            serviceId: a.service_id,
-            customerId: a.customer_id,
-            customerName: a.customer_name
-          })));
-        }
-        if (resInventory.data) {
-            // Map DB columns (snake_case) to App types (camelCase)
-            setInventory(resInventory.data.map((i: any) => ({
-                id: i.id,
-                name: i.name,
-                quantity: i.quantity,
-                price: i.price,
-                minLevel: i.min_level || i.minLevel || 0, // Fallback support
-                category: i.category
-            })));
-        }
-        if (resProfiles.data) setUsers(resProfiles.data.map((p: any) => ({
-            ...p,
-            name: p.name || p.full_name || 'Usuário',
-            barbershopId: p.barbershop_id
-        })));
-        
-        if (resOrders.data) {
-             setOrders(resOrders.data.map((o: any) => ({
-                ...o,
-                items: o.items || [], // Ensure items is array
-                createdAt: o.created_at,
-                totalAmount: o.total_amount,
-                customerName: o.customer_name,
-                customerId: o.customer_id,
-                deliveryMethod: o.delivery_method,
-                paymentMethod: o.payment_method
-             })));
-        }
-        
-        if (resShop?.data) {
-            const shop = resShop.data as Barbershop;
-            setBarbershop(shop);
-            setShopSettings({
-                shopName: shop.name,
-                address: shop.address || 'Endereço não configurado',
-                phone: shop.phone || '(00) 00000-0000',
-                openingHours: shop.openingHours || { start: '09:00', end: '19:00' },
-                workingDays: shop.workingDays || ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'],
-                defaultCommissionRate: shop.defaultCommissionRate
-            });
-        }
-      } catch (e) {
-        console.warn("Erro ao buscar dados do negócio.");
-      }
-    };
-
-    fetchData();
-
-    // Canais de Realtime
-    const apptChannel = supabase
-      .channel('appointments-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          const newAppt = {
-            ...payload.new,
-            startTime: new Date(payload.new.start_time),
-            barberId: payload.new.barber_id,
-            serviceId: payload.new.service_id,
-            customerId: payload.new.customer_id,
-            customerName: payload.new.customer_name
-          } as Appointment;
-          setAppointments(prev => [...prev.filter(a => a.id !== newAppt.id), newAppt]);
-        } else if (payload.eventType === 'UPDATE') {
-          setAppointments(prev => prev.map(a => a.id === payload.new.id ? {
-            ...payload.new,
-            startTime: new Date(payload.new.start_time),
-            barberId: payload.new.barber_id,
-            serviceId: payload.new.service_id,
-            customerId: payload.new.customer_id,
-            customerName: payload.new.customer_name
-          } as Appointment : a));
-        }
-      })
-      .subscribe();
-
-    const invChannel = supabase
-      .channel('inventory-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, (payload) => {
-          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-              const newItem = {
-                  id: payload.new.id,
-                  name: payload.new.name,
-                  quantity: payload.new.quantity,
-                  price: payload.new.price,
-                  minLevel: payload.new.min_level || 0,
-                  category: payload.new.category
-              } as InventoryItem;
-              
-              setInventory(prev => {
-                  const exists = prev.find(i => i.id === newItem.id);
-                  if (exists) return prev.map(i => i.id === newItem.id ? newItem : i);
-                  return [...prev, newItem];
-              });
-          } else if (payload.eventType === 'DELETE') {
-              setInventory(prev => prev.filter(i => i.id !== payload.old.id));
+    const checkSession = async () => {
+      if (isSupabaseConfigured()) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const profile = await db.getProfile(session.user.id);
+          if (profile) {
+            const user = { ...profile, email: session.user.email };
+            setCurrentUser(user);
+            await syncAppData(user);
           }
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(apptChannel);
-      supabase.removeChannel(invChannel);
+        }
+      }
+      setIsLoading(false);
     };
-  }, [currentUser, isGuest]);
+    checkSession();
+  }, [syncAppData]);
 
-  const handleLogin = (user: User) => {
+  // --- HANDLERS ---
+
+  const handleLogin = async (user: User) => {
     setCurrentUser(user);
     setIsGuest(false);
+    await syncAppData(user);
     setCurrentView('dashboard');
   };
 
@@ -260,276 +130,134 @@ function App() {
     if (isSupabaseConfigured()) await supabase.auth.signOut();
     setCurrentUser(null);
     setIsGuest(false);
-    setBarbershop(null);
     setCurrentView('dashboard');
   };
 
-  const handleAddAppointment = async (apptData: Partial<Appointment>) => {
-    if (!isSupabaseConfigured()) {
-      const localAppt = { ...apptData, id: `local_${Date.now()}`, status: 'CONFIRMED' } as Appointment;
-      setAppointments(prev => [...prev, localAppt]);
-      return true;
-    }
+  const handleAddAppointment = async (appt: Partial<Appointment>) => {
+    try {
+        if (!currentUser?.barbershopId && currentUser?.role !== UserRole.OWNER) {
+            throw new Error("Usuário sem barbearia vinculada.");
+        }
+        
+        const shopId = currentUser.role === UserRole.OWNER 
+          ? (await db.getBarbershopByOwner(currentUser.id))?.id 
+          : currentUser.barbershopId;
 
-    const { error } = await supabase.from('appointments').insert([{
-      barber_id: apptData.barberId,
-      customer_id: apptData.customerId || currentUser?.id,
-      customer_name: apptData.customerName || currentUser?.name,
-      service_id: apptData.serviceId,
-      start_time: apptData.startTime?.toISOString(),
-      status: 'CONFIRMED',
-      payment_method: apptData.paymentMethod,
-      payment_status: apptData.paymentStatus,
-      barbershop_id: barbershop?.id
-    }]);
-
-    if (error) {
-      alert("Erro ao agendar: " + error.message);
-      return false;
-    }
-    return true;
-  };
-
-  const updateApptStatus = async (id: string, status: 'COMPLETED' | 'CANCELLED' | 'CONFIRMED') => {
-    if (isSupabaseConfigured()) {
-      await supabase.from('appointments').update({ status }).eq('id', id);
-    } else {
-      setAppointments(prev => prev.map(a => a.id === id ? { ...a, status } : a));
+        const newAppt = await db.createAppointment({
+            ...appt,
+            barbershop_id: shopId,
+            status: 'CONFIRMED',
+            startTime: appt.startTime?.toISOString()
+        });
+        
+        setAppointments(prev => [...prev, { ...newAppt, startTime: new Date(newAppt.startTime) }]);
+        return true;
+    } catch (err) {
+        setGlobalError("Não foi possível salvar o agendamento.");
+        return false;
     }
   };
 
-  /**
-   * Lógica de Compra: Salva Pedido, Baixa Estoque, Pontua Cliente
-   */
-  const handlePurchase = async (cartItems: CartItem[], totalPaid: number, pointsUsed: boolean, pointsDiscount: number) => {
-      const orderData = {
-          customer_id: currentUser?.id,
-          customer_name: currentUser?.name || 'Cliente',
-          items: cartItems,
-          total_amount: totalPaid,
-          status: 'PAID' as OrderStatus,
-          payment_method: 'CREDIT_CARD', // Simplification
-          delivery_method: 'PICKUP',
-          barbershop_id: barbershop?.id,
-          created_at: new Date().toISOString()
-      };
+  // --- RENDERING ---
 
-      if (!isSupabaseConfigured()) {
-          const mockOrder: Order = { ...orderData, id: `ord_${Date.now()}`, createdAt: orderData.created_at } as any;
-          setOrders(prev => [mockOrder, ...prev]);
-          // Mock Inventory Update
-          const newInv = [...inventory];
-          cartItems.forEach(cartItem => {
-              const invItem = newInv.find(i => i.id === cartItem.id.replace('inv_', ''));
-              if (invItem) invItem.quantity = Math.max(0, invItem.quantity - cartItem.quantity);
-          });
-          setInventory(newInv);
-          return true;
-      }
-
-      try {
-          // 1. Salvar Pedido
-          const { data: order, error: orderError } = await supabase
-              .from('orders')
-              .insert([orderData])
-              .select()
-              .single();
-
-          if (orderError) throw orderError;
-
-          // 2. Atualizar Estoque (Iterativo para simplicidade, idealmente uma RPC transaction)
-          for (const item of cartItems) {
-              if (item.id.startsWith('inv_')) {
-                  const invId = item.id.replace('inv_', '');
-                  const currentInv = inventory.find(i => i.id === invId);
-                  if (currentInv) {
-                      await supabase.from('inventory')
-                          .update({ quantity: Math.max(0, currentInv.quantity - item.quantity) })
-                          .eq('id', invId);
-                  }
-              }
-          }
-
-          // 3. Atualizar Pontos
-          if (currentUser) {
-              const pointsEarned = Math.floor(totalPaid); // 1 ponto por real
-              const pointsSpent = pointsUsed ? (pointsDiscount * 10) : 0; // Ex: 10 pts = 1 real
-              const newPoints = (currentUser.points || 0) + pointsEarned - pointsSpent;
-              
-              await supabase.from('profiles').update({ points: newPoints }).eq('id', currentUser.id);
-              setCurrentUser({ ...currentUser, points: newPoints });
-          }
-
-          // Atualizar estado local
-          setOrders(prev => [{...order, items: cartItems} as any, ...prev]);
-          
-          return true;
-      } catch (error: any) {
-          console.error("Erro na compra:", error);
-          alert("Erro ao processar compra: " + error.message);
-          return false;
-      }
-  };
-
-  /**
-   * Lógica de Atualização de Estoque (Adicionar/Editar/Excluir)
-   */
-  const handleUpdateInventory = async (item: InventoryItem, action: 'UPSERT' | 'DELETE') => {
-      if (!isSupabaseConfigured()) {
-          if (action === 'DELETE') {
-              setInventory(prev => prev.filter(i => i.id !== item.id));
-          } else {
-              setInventory(prev => {
-                  const exists = prev.find(i => i.id === item.id);
-                  if (exists) return prev.map(i => i.id === item.id ? item : i);
-                  return [...prev, item];
-              });
-          }
-          return;
-      }
-
-      try {
-          if (action === 'DELETE') {
-              await supabase.from('inventory').delete().eq('id', item.id);
-              // Optimistic update handled by realtime or fetch, but safe to keep locally too
-              setInventory(prev => prev.filter(i => i.id !== item.id));
-          } else {
-              // Prepare payload mapping types to DB columns
-              const payload: any = { 
-                  name: item.name,
-                  quantity: item.quantity,
-                  price: item.price,
-                  min_level: item.minLevel,
-                  category: item.category,
-                  barbershop_id: barbershop?.id 
-              };
-              
-              // Only add ID if it's not a new temporary one
-              if (!item.id.startsWith('new_')) {
-                  payload.id = item.id;
-              }
-
-              const { data, error } = await supabase.from('inventory').upsert([payload]).select().single();
-              if (error) throw error;
-              
-              // Ensure we update local state properly, especially for new items getting a real ID
-              if (data) {
-                  const mappedData: InventoryItem = {
-                      id: data.id,
-                      name: data.name,
-                      quantity: data.quantity,
-                      price: data.price,
-                      minLevel: data.min_level,
-                      category: data.category
-                  };
-
-                  setInventory(prev => {
-                      const exists = prev.find(i => i.id === item.id || i.id === mappedData.id);
-                      if (exists) return prev.map(i => i.id === exists.id ? mappedData : i);
-                      return [...prev, mappedData];
-                  });
-              }
-          }
-      } catch (error: any) {
-          console.error("Erro estoque:", error);
-          alert("Erro ao atualizar estoque.");
-      }
-  };
-
-  if (isLoading) return <div className="h-screen flex items-center justify-center bg-brand-dark text-white font-black animate-pulse">CARREGANDO BARVO...</div>;
+  if (isLoading) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-brand-dark text-white font-black animate-pulse">
+        <Scissors size={48} className="mb-4 text-brand-light" />
+        <span className="tracking-[0.3em] uppercase text-xs">Carregando Barvo...</span>
+      </div>
+    );
+  }
 
   if (!currentUser && !isGuest) {
     return <AuthScreen onLogin={handleLogin} onGuestContinue={() => { setIsGuest(true); setCurrentView('booking'); }} />;
   }
 
-  // Proteção para Guest Mode
-  if (isGuest && currentView !== 'booking' && currentView !== 'shop') {
-      setCurrentView('booking');
-  }
-
   const renderContent = () => {
     const role = currentUser?.role || UserRole.CUSTOMER;
-
+    
     switch (currentView) {
       case 'dashboard':
         if (role === UserRole.OWNER) return <Dashboard stats={MOCK_STATS} onNavigate={setCurrentView} />;
-        if (role === UserRole.BARBER) return <BarberDashboard currentUser={currentUser!} appointments={appointments} commissionRate={shopSettings.defaultCommissionRate || 50} onCompleteAppointment={(id) => updateApptStatus(id, 'COMPLETED')} onNoShow={(id) => updateApptStatus(id, 'CANCELLED')} services={services} exceptions={[]} onBlockTime={() => {}} />;
-        return <CustomerDashboard currentUser={currentUser!} appointments={appointments} onNavigate={setCurrentView} membershipPlans={plans} />;
+        if (role === UserRole.BARBER) return <BarberDashboard currentUser={currentUser!} appointments={appointments} commissionRate={shopSettings.defaultCommissionRate || 50} onCompleteAppointment={(id) => db.updateAppointmentStatus(id, 'COMPLETED')} onNoShow={(id) => db.updateAppointmentStatus(id, 'CANCELLED')} services={services} exceptions={[]} onBlockTime={() => {}} />;
+        return <CustomerDashboard currentUser={currentUser!} appointments={appointments} onNavigate={setCurrentView} membershipPlans={membershipPlans} />;
       
-      case 'calendar':
-        return <CalendarView appointments={appointments} barbers={users.filter(u => u.role === UserRole.BARBER)} services={services} onAddAppointment={handleAddAppointment} />;
+      case 'calendar': 
+        return <CalendarView appointments={appointments} barbers={[]} services={services} onAddAppointment={handleAddAppointment} />;
       
-      case 'booking':
+      case 'booking': 
         return <BookingFlow currentUser={currentUser} initialData={null} services={services} onBook={handleAddAppointment} shopSettings={shopSettings} allAppointments={appointments} availabilityExceptions={[]} />;
       
-      case 'appointments':
-        return <CustomerAppointments currentUser={currentUser!} appointments={appointments} services={services} onCancel={(id) => updateApptStatus(id, 'CANCELLED')} onRebook={(a) => { setCurrentView('booking'); }} onNavigate={setCurrentView} />;
-
-      case 'queue':
-        return <QueueSystem initialQueue={[]} services={services} />;
-
-      case 'shop':
-        return <Shop currentUser={currentUser!} inventory={inventory} onPurchase={handlePurchase} />;
-
-      case 'inventory':
-        return <Inventory items={inventory} onUpdateItem={handleUpdateInventory} />;
-
-      case 'financials':
-        return <Financials transactions={transactions} />;
-
-      case 'team':
-        return <Team barbers={users.filter(u => u.role === UserRole.BARBER)} setUsers={setUsers} />;
-
-      case 'services':
-        return <ServicesManagement services={services} onUpdateServices={setServices} />;
-
-      case 'crm':
-        return <CustomerCRM services={services} notes={notes} onSaveNote={(n) => setNotes([...notes, n as TechnicalNote])} customers={users.filter(u => u.role === UserRole.CUSTOMER)} appointments={appointments} onScheduleReturn={() => setCurrentView('calendar')} />;
-
-      case 'strategic':
-        return <StrategicGrowth services={services} plans={plans} setPlans={setPlans} />;
-
-      case 'marketing':
-        return <MarketingTools automations={automations} setAutomations={setAutomations} />;
+      case 'shop': 
+        return <Shop currentUser={currentUser!} inventory={inventory} onPurchase={async (items, total) => {
+            const shopId = currentUser?.role === UserRole.OWNER ? (await db.getBarbershopByOwner(currentUser.id))?.id : currentUser?.barbershopId;
+            await db.createOrder({ customerId: currentUser?.id, items, totalAmount: total, barbershop_id: shopId, status: 'PAID' });
+            await syncAppData(currentUser!);
+            return true;
+        }} />;
+      
+      case 'inventory': 
+        return <Inventory items={inventory} onUpdateItem={async (item, action) => {
+            if (action === 'UPSERT') {
+                const shopId = currentUser?.role === UserRole.OWNER ? (await db.getBarbershopByOwner(currentUser!.id))?.id : currentUser?.barbershopId;
+                await db.upsertInventoryItem({ ...item, barbershop_id: shopId });
+            }
+            await syncAppData(currentUser!);
+        }} />;
+      
+      case 'services': 
+        return <ServicesManagement services={services} onUpdateServices={async (newServices) => {
+            // Em uma implementação real, o componente ServicesManagement chamaria db.saveService/deleteService individualmente
+            setServices(newServices);
+        }} />;
 
       case 'order_management':
-        return <OrderManagement orders={orders} users={users} onUpdateStatus={() => {}} onNavigate={setCurrentView} />;
-      
-      case 'orders':
-        return <CustomerOrders orders={orders} onNavigate={setCurrentView} onRepeatOrder={() => {}} />;
+        return <OrderManagement orders={orders} users={[]} onNavigate={setCurrentView} onUpdateStatus={async (id, status, track) => {
+            await db.updateOrderStatus(id, status, track);
+            await syncAppData(currentUser!);
+        }} />;
 
-      case 'settings':
+      case 'financials':
+        return <Financials transactions={MOCK_TRANSACTIONS} />;
+
+      case 'settings': 
         return <Settings currentUser={currentUser!} settings={shopSettings} onUpdateSettings={setShopSettings} onUpdateUser={setCurrentUser} />;
-
-      default:
+      
+      default: 
         return <Dashboard stats={MOCK_STATS} onNavigate={setCurrentView} />;
     }
   };
 
   return (
-    <Layout currentUser={currentUser} currentView={currentView} onNavigate={setCurrentView} onLogout={handleLogout}>
-      <div className="mb-6 flex flex-col md:flex-row gap-4">
-        {!isSupabaseConfigured() ? (
-            <div className="flex-1 bg-amber-50 border border-amber-100 p-4 rounded-2xl flex items-center gap-4">
-                <Database className="text-amber-600" />
-                <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Modo Demo: Verifique seu arquivo .env</p>
-            </div>
-        ) : (
-            <div className={`flex-1 p-4 rounded-2xl flex items-center gap-4 border ${dbStatus === 'connected' ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
-                {dbStatus === 'connected' ? <Wifi className="text-emerald-600" /> : <WifiOff className="text-red-600" />}
-                <p className={`text-[10px] font-black uppercase tracking-widest ${dbStatus === 'connected' ? 'text-emerald-700' : 'text-red-700'}`}>
-                    Cloud: {dbStatus === 'connected' ? 'Supabase Conectado' : 'Erro de Conexão'}
-                </p>
-            </div>
-        )}
-        {barbershop && (
-            <div className="bg-brand-dark text-brand-light p-4 rounded-2xl flex items-center gap-4 shadow-lg">
-                <Database size={18} />
-                <p className="text-[10px] font-black uppercase tracking-widest">Barbearia Ativa: {barbershop.name}</p>
-            </div>
+    <Layout 
+      currentUser={currentUser} 
+      currentView={currentView} 
+      onNavigate={setCurrentView} 
+      onLogout={handleLogout}
+      notifications={notifications}
+      onMarkAllRead={() => setNotifications(prev => prev.map(n => ({...n, read: true})))}
+    >
+      {globalError && (
+          <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 flex justify-between items-center rounded-r-xl shadow-sm animate-slide-in">
+              <div className="flex items-center gap-2 font-bold"><AlertCircle size={20}/> {globalError}</div>
+              <button onClick={() => setGlobalError(null)} className="text-xs font-black uppercase hover:underline">Fechar</button>
+          </div>
+      )}
+      
+      <div className="mb-6 flex justify-between items-center">
+        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${dbStatus === 'connected' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+          {dbStatus === 'connected' ? <Wifi size={12}/> : <WifiOff size={12}/>}
+          {dbStatus === 'connected' ? 'Sincronizado' : 'Modo Offline'}
+        </div>
+        {dbStatus === 'connected' && (
+            <button onClick={() => syncAppData(currentUser!)} className="p-2 text-slate-400 hover:text-brand-dark transition-all">
+                <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+            </button>
         )}
       </div>
+
       {renderContent()}
+      
       <ChatAssistant currentUser={currentUser} />
     </Layout>
   );

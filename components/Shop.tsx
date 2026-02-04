@@ -5,7 +5,7 @@ import { StoreProduct, CartItem, User, InventoryItem } from '../types';
 import { 
   ShoppingBag, Plus, Minus, ShoppingCart, X, Gift, 
   Trash2, Check, CreditCard, Loader2, ArrowRight, CheckCircle, 
-  ShieldCheck, Zap, Copy, Timer, Star 
+  ShieldCheck, Zap, Copy, Timer, Star, Receipt, Tag as TagIcon
 } from 'lucide-react';
 
 interface ShopProps {
@@ -82,8 +82,8 @@ export const Shop: React.FC<ShopProps> = ({ currentUser, inventory, onPurchase }
 
   const cartTotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   const currentPoints = currentUser.points || 0;
-  const maxDiscount = currentPoints / LOYALTY_RULES.DISCOUNT_CONVERSION_RATE;
-  const discount = usePoints ? Math.min(maxDiscount, cartTotal * 0.5) : 0; 
+  const maxDiscountValue = currentPoints / LOYALTY_RULES.DISCOUNT_CONVERSION_RATE;
+  const discount = usePoints ? Math.min(maxDiscountValue, cartTotal * 0.5) : 0; 
   const finalTotal = cartTotal - discount;
 
   const addToCart = (product: StoreProduct) => {
@@ -164,19 +164,21 @@ export const Shop: React.FC<ShopProps> = ({ currentUser, inventory, onPurchase }
         </div>
         <button 
           onClick={() => setIsCartOpen(true)} 
-          className="w-full md:w-auto flex bg-brand-dark text-white px-5 py-3.5 rounded-2xl hover:bg-black transition-all shadow-xl items-center justify-center gap-3 relative active:scale-95"
+          className="w-full md:w-auto flex bg-brand-dark text-white px-6 py-4 rounded-2xl hover:bg-black transition-all shadow-xl items-center justify-center gap-3 relative active:scale-95 group"
         >
-            <ShoppingCart size={20} />
-            <span className="font-bold text-sm uppercase tracking-widest">Carrinho</span>
+            <div className="bg-white/10 p-1.5 rounded-lg group-hover:scale-110 transition-transform">
+              <ShoppingCart size={18} />
+            </div>
+            <span className="font-black text-xs uppercase tracking-[0.15em]">Meu Carrinho</span>
             {cart.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-full border-2 border-white shadow-lg">
+              <span className="absolute -top-1.5 -right-1.5 bg-brand-accent text-white text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-full border-2 border-white shadow-lg animate-pulse-soft">
                 {cart.reduce((acc, i) => acc + i.quantity, 0)}
               </span>
             )}
         </button>
       </div>
 
-      {/* Categorias - Estilo Scroll Horizontal Touch Friendly */}
+      {/* Categorias */}
       <div className="flex gap-2 overflow-x-auto pb-4 mb-2 no-scrollbar scroll-smooth">
           {categories.map(cat => (
               <button 
@@ -189,7 +191,7 @@ export const Shop: React.FC<ShopProps> = ({ currentUser, inventory, onPurchase }
           ))}
       </div>
 
-      {/* Grade de Produtos - 2 colunas Mobile para melhor densidade */}
+      {/* Grade de Produtos */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6 animate-fade-in">
           {filteredProducts.map(product => (
               <div key={product.id} className="bg-white rounded-2xl md:rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden hover:shadow-xl transition-all group flex flex-col active:scale-[0.98]">
@@ -213,7 +215,7 @@ export const Shop: React.FC<ShopProps> = ({ currentUser, inventory, onPurchase }
                           <button 
                             onClick={() => addToCart(product)} 
                             disabled={!product.inStock} 
-                            className="bg-slate-100 text-brand-dark p-2 md:p-3 rounded-xl active:bg-brand-dark active:text-white transition-all disabled:opacity-30"
+                            className="bg-slate-100 text-brand-dark p-2 md:p-3 rounded-xl active:bg-brand-dark active:text-white transition-all disabled:opacity-30 hover:shadow-lg"
                           >
                             <Plus size={18} />
                           </button>
@@ -223,72 +225,167 @@ export const Shop: React.FC<ShopProps> = ({ currentUser, inventory, onPurchase }
           ))}
       </div>
 
-      {/* Cart Drawer Otimizado p/ Mobile */}
+      {/* NOVO CARRINHO - UI DE APP DE DELIVERY */}
       {isCartOpen && (
           <div className="fixed inset-0 z-50 flex justify-end">
-              <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></div>
+              <div className="absolute inset-0 bg-brand-dark/40 backdrop-blur-sm animate-fade-in" onClick={() => setIsCartOpen(false)}></div>
               <div className="relative w-full md:max-w-md bg-white h-full shadow-2xl flex flex-col animate-slide-in">
-                  <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
-                      <div>
-                        <h3 className="text-lg font-black text-slate-800 tracking-tighter flex items-center gap-2">
-                          <ShoppingCart size={22} className="text-brand-dark" /> Carrinho
-                        </h3>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">{cart.length} itens</p>
+                  
+                  {/* Header do Carrinho */}
+                  <div className="px-6 pt-8 pb-6 border-b border-slate-100 flex justify-between items-center bg-white">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-brand-dark">
+                          <ShoppingCart size={22} />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-black text-slate-900 tracking-tighter">Carrinho</h3>
+                          <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{cart.length} {cart.length === 1 ? 'item selecionado' : 'itens selecionados'}</p>
+                        </div>
                       </div>
-                      <button onClick={() => setIsCartOpen(false)} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-400 transition-colors">
-                        <X size={22} />
+                      <button onClick={() => setIsCartOpen(false)} className="p-2.5 bg-slate-50 hover:bg-slate-100 rounded-full text-slate-400 transition-all active:scale-90">
+                        <X size={20} strokeWidth={3} />
                       </button>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/30">
+                  {/* Lista de Itens */}
+                  <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 custom-scrollbar bg-slate-50/20">
                       {cart.length === 0 ? (
-                        <div className="text-center py-20 flex flex-col items-center">
-                          <ShoppingBag size={48} className="text-slate-200 mb-4" />
-                          <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Seu carrinho está vazio</p>
+                        <div className="h-full flex flex-col items-center justify-center text-center opacity-60 space-y-4">
+                          <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-slate-300">
+                             <ShoppingBag size={40} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-black text-slate-800 uppercase tracking-widest">Saco vazio</p>
+                            <p className="text-xs font-medium text-slate-400 mt-1">Que tal adicionar alguns<br/>produtos premium?</p>
+                          </div>
+                          <button 
+                            onClick={() => setIsCartOpen(false)}
+                            className="text-xs font-black text-brand-accent uppercase tracking-widest py-2 px-4 border-2 border-brand-accent/20 rounded-xl hover:bg-brand-accent hover:text-white transition-all"
+                          >
+                            Voltar para a loja
+                          </button>
                         </div>
                       ) : cart.map(item => (
-                          <div key={item.cartId} className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex gap-3 items-center">
-                              <img src={item.images[0]} className="w-16 h-16 rounded-xl object-cover border border-slate-50" />
+                          <div key={item.cartId} className="bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-sm flex gap-4 items-center group animate-fade-in">
+                              <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border border-slate-50 shadow-inner">
+                                  <img src={item.images[0]} className="w-full h-full object-cover" alt={item.name} />
+                              </div>
+                              
                               <div className="flex-1 min-w-0">
-                                  <h4 className="font-bold text-slate-800 text-[11px] truncate leading-tight mb-1">{item.name}</h4>
-                                  <p className="text-sm font-black text-brand-dark mb-2">R$ {item.price.toFixed(2)}</p>
-                                  
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
-                                      <button onClick={() => updateCartQuantity(item.cartId, -1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm active:scale-90"><Minus size={14} /></button>
-                                      <span className="w-8 text-center text-xs font-black text-slate-800">{item.quantity}</span>
-                                      <button onClick={() => updateCartQuantity(item.cartId, 1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm active:scale-90"><Plus size={14} /></button>
-                                    </div>
+                                  <div className="flex justify-between items-start mb-1">
+                                    <h4 className="font-bold text-slate-800 text-xs leading-tight line-clamp-1 pr-2">{item.name}</h4>
                                     <button 
                                       onClick={() => setCart(cart.filter(c => c.cartId !== item.cartId))} 
-                                      className="p-2 text-slate-300 hover:text-red-500"
+                                      className="text-slate-300 hover:text-red-500 transition-colors p-1"
                                     >
-                                      <Trash2 size={16} />
+                                      <Trash2 size={14} />
                                     </button>
+                                  </div>
+                                  
+                                  <p className="text-sm font-black text-brand-dark mb-3">R$ {item.price.toFixed(2)}</p>
+                                  
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center bg-slate-100 rounded-xl p-0.5 border border-slate-200">
+                                      <button 
+                                        onClick={() => updateCartQuantity(item.cartId, -1)} 
+                                        className="w-7 h-7 flex items-center justify-center bg-white rounded-lg shadow-sm active:scale-75 text-slate-400 hover:text-brand-dark transition-all"
+                                      >
+                                        <Minus size={12} strokeWidth={3} />
+                                      </button>
+                                      <span className="w-9 text-center text-xs font-black text-slate-800">{item.quantity}</span>
+                                      <button 
+                                        onClick={() => updateCartQuantity(item.cartId, 1)} 
+                                        className="w-7 h-7 flex items-center justify-center bg-white rounded-lg shadow-sm active:scale-75 text-slate-400 hover:text-brand-dark transition-all"
+                                      >
+                                        <Plus size={12} strokeWidth={3} />
+                                      </button>
+                                    </div>
+                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                      R$ {(item.price * item.quantity).toFixed(2)}
+                                    </div>
                                   </div>
                               </div>
                           </div>
                       ))}
+
+                      {cart.length > 0 && currentPoints >= LOYALTY_RULES.MIN_POINTS_TO_REDEEM && (
+                        <div className="pt-4 pb-2">
+                           <button 
+                             onClick={() => setUsePoints(!usePoints)}
+                             className={`w-full p-4 rounded-2xl flex items-center gap-3 border transition-all ${usePoints ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-100'}`}
+                           >
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${usePoints ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-600'}`}>
+                                 <Gift size={16} />
+                              </div>
+                              <div className="text-left flex-1">
+                                <p className="text-[10px] font-black text-blue-800 uppercase leading-tight">Usar meus {currentPoints} pontos</p>
+                                <p className="text-[9px] text-slate-400 font-bold">Desconto de R$ {maxDiscountValue.toFixed(2)} disponível</p>
+                              </div>
+                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${usePoints ? 'bg-blue-600 border-blue-600' : 'border-slate-200'}`}>
+                                {usePoints && <Check size={12} className="text-white" strokeWidth={4} />}
+                              </div>
+                           </button>
+                        </div>
+                      )}
+                      
+                      {cart.length > 0 && !usePoints && (
+                         <div className="pt-2">
+                            <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl flex items-center gap-3">
+                               <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">
+                                  <Zap size={16} />
+                               </div>
+                               <p className="text-[10px] font-bold text-emerald-800 uppercase leading-tight">Você ganhará <span className="font-black underline">{Math.floor(finalTotal)} pontos</span> com esta compra!</p>
+                            </div>
+                         </div>
+                      )}
                   </div>
 
-                  <div className="p-5 bg-white border-t border-slate-100 shadow-[0_-10px_30px_rgba(0,0,0,0.03)] pb-10 md:pb-5">
-                      <div className="flex justify-between items-center mb-5">
-                        <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">Subtotal</span>
-                        <span className="text-2xl font-black text-brand-dark">R$ {cartTotal.toFixed(2)}</span>
-                      </div>
-                      <button 
-                        onClick={() => { setIsCartOpen(false); setIsCheckoutModalOpen(true); }} 
-                        disabled={cart.length === 0} 
-                        className="w-full bg-brand-dark text-white font-black py-4 rounded-2xl shadow-xl active:scale-[0.98] transition-all text-xs uppercase tracking-widest disabled:opacity-30 flex items-center justify-center gap-2"
-                      >
-                        Checkout Seguro <ArrowRight size={16} />
-                      </button>
-                  </div>
+                  {/* Resumo e Totais - Estilo Delivery Checkout */}
+                  {cart.length > 0 && (
+                    <div className="p-6 bg-white border-t border-slate-100 shadow-[0_-15px_40px_rgba(0,0,0,0.04)] space-y-5">
+                        <div className="space-y-3">
+                           <div className="flex justify-between items-center text-xs">
+                              <span className="text-slate-400 font-bold uppercase tracking-widest flex items-center gap-2">
+                                <Receipt size={14} /> Subtotal
+                              </span>
+                              <span className="font-black text-slate-800">R$ {cartTotal.toFixed(2)}</span>
+                           </div>
+                           
+                           {usePoints && (
+                             <div className="flex justify-between items-center text-xs animate-fade-in">
+                                <span className="text-slate-400 font-bold uppercase tracking-widest flex items-center gap-2">
+                                  <TagIcon size={14} /> Pontos Fidelidade
+                                </span>
+                                <span className="font-black text-emerald-600">- R$ {discount.toFixed(2)}</span>
+                             </div>
+                           )}
+
+                           <div className="pt-3 border-t border-slate-50 flex justify-between items-center">
+                              <span className="text-sm font-black text-slate-900 uppercase tracking-[0.2em]">Total</span>
+                              <div className="text-right">
+                                <span className="text-2xl font-black text-brand-dark tracking-tighter">R$ {finalTotal.toFixed(2)}</span>
+                              </div>
+                           </div>
+                        </div>
+
+                        <button 
+                          onClick={() => { setIsCartOpen(false); setIsCheckoutModalOpen(true); }} 
+                          className="w-full bg-brand-dark text-white font-black py-5 rounded-[2rem] shadow-2xl active:scale-[0.97] hover:bg-black transition-all text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-4 group"
+                        >
+                          Ir para o Pagamento
+                          <div className="bg-white/10 p-1 rounded-lg group-hover:translate-x-1 transition-transform">
+                             <ArrowRight size={16} strokeWidth={3} />
+                          </div>
+                        </button>
+                        
+                        <p className="text-center text-[9px] font-black text-slate-300 uppercase tracking-widest">Retirada grátis na unidade selecionada</p>
+                    </div>
+                  )}
               </div>
           </div>
       )}
 
-      {/* Checkout e Sucesso Modals permanecem conforme os arquivos originais mas com melhorias de padding mobile via App.tsx */}
+      {/* Checkout Modal */}
       {isCheckoutModalOpen && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-md animate-fade-in overflow-y-auto p-2">
               <div className="w-full max-w-5xl h-auto md:min-h-0 flex flex-col md:flex-row relative bg-white rounded-[2.5rem] md:rounded-[3rem] shadow-2xl overflow-hidden">
@@ -402,10 +499,10 @@ export const Shop: React.FC<ShopProps> = ({ currentUser, inventory, onPurchase }
                       </div>
                   </div>
 
-                  {/* Lado Direito Resumo - Minimalista Mobile */}
+                  {/* Lado Direito Resumo */}
                   <div className="hidden md:flex w-1/2 p-16 bg-slate-50 flex-col justify-center">
                       <div className="max-w-sm w-full mx-auto">
-                          <h3 className="text-slate-400 font-black uppercase text-[10px] tracking-widest mb-10">Resumo</h3>
+                          <h3 className="text-slate-400 font-black uppercase text-[10px] tracking-widest mb-10">Resumo da Compra</h3>
                           <div className="space-y-6 max-h-[30vh] overflow-y-auto pr-4 custom-scrollbar mb-10">
                               {cart.map(item => (
                                   <div key={item.cartId} className="flex gap-4 items-center">
@@ -436,7 +533,7 @@ export const Shop: React.FC<ShopProps> = ({ currentUser, inventory, onPurchase }
           </div>
       )}
 
-      {/* Sucesso Modal Mobile Optimized */}
+      {/* Sucesso Modal */}
       {showSuccessModal && lastOrderDetails && (
           <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/90 backdrop-blur-md p-4 animate-fade-in">
               <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden text-center p-8 md:p-12 border border-white/20">

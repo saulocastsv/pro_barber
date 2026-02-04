@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, X, Send, Bot, User as UserIcon } from 'lucide-react';
-import { sendMessageToGemini } from '../services/geminiService';
+import { sendMessageToGemini, ChatMessage } from '../services/geminiService';
 import { User, UserRole } from '../types';
 
 interface ChatAssistantProps {
@@ -10,7 +10,7 @@ interface ChatAssistantProps {
 
 export const ChatAssistant: React.FC<ChatAssistantProps> = ({ currentUser }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<{role: 'user' | 'assistant', text: string}[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -25,7 +25,8 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({ currentUser }) => 
       greeting = `E aí, fera! ✂️ Bora turbinar sua agenda? Posso criar legendas pro seu Insta, te ajudar a vender mais produtos ou sugerir como abordar aquele cliente difícil. Manda a braba!`;
     }
 
-    setMessages([{ role: 'assistant', text: greeting }]);
+    // Reinicia o chat apenas se estiver vazio (evita resetar ao navegar)
+    setMessages(prev => prev.length === 0 ? [{ role: 'assistant', text: greeting }] : prev);
   }, [currentUser]);
 
   useEffect(() => {
@@ -39,13 +40,24 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({ currentUser }) => 
     
     const userMsg = input;
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+    
+    // Atualiza estado local imediatamente com a mensagem do usuário
+    // Cria um novo array de histórico incluindo a nova mensagem
+    const newHistory: ChatMessage[] = [...messages, { role: 'user', text: userMsg }];
+    setMessages(newHistory);
+    
     setIsLoading(true);
 
-    const reply = await sendMessageToGemini(userMsg, currentUser);
-    
-    setMessages(prev => [...prev, { role: 'assistant', text: reply }]);
-    setIsLoading(false);
+    try {
+      // Envia o histórico COMPLETO para o backend
+      const reply = await sendMessageToGemini(newHistory, currentUser);
+      
+      setMessages(prev => [...prev, { role: 'assistant', text: reply }]);
+    } catch (error) {
+      setMessages(prev => [...prev, { role: 'assistant', text: "Desculpe, tive um problema de conexão. Tente novamente." }]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

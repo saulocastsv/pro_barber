@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { User, UserRole, Notification } from '../types';
-import { MOCK_NOTIFICATIONS } from '../constants';
 import { 
   LayoutDashboard, Calendar, Scissors, Users, DollarSign, LogOut, 
   Menu, X, Clock, Bell, List, ShoppingBag, Megaphone, ClipboardList, 
@@ -15,13 +14,22 @@ interface LayoutProps {
   onNavigate: (view: string) => void;
   currentView: string;
   onLogout: () => void;
+  notifications: Notification[];
+  onMarkAllRead: () => void;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onNavigate, currentView, onLogout }) => {
+export const Layout: React.FC<LayoutProps> = ({ 
+  children, 
+  currentUser, 
+  onNavigate, 
+  currentView, 
+  onLogout,
+  notifications,
+  onMarkAllRead
+}) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
   const notifRef = useRef<HTMLDivElement>(null);
 
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -40,10 +48,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onNavigat
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  const markAllRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, read: true })));
-  };
 
   const menuItems = [
     { id: 'dashboard', label: 'Início', icon: LayoutDashboard, roles: [UserRole.OWNER, UserRole.BARBER, UserRole.CUSTOMER] }, 
@@ -164,7 +168,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onNavigat
               <div className="absolute right-0 top-full mt-2 w-72 md:w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden animate-fade-in origin-top-right">
                 <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                   <span className="text-xs font-black text-brand-dark uppercase tracking-widest">Notificações</span>
-                  <button onClick={markAllRead} className="text-[10px] font-bold text-blue-600 hover:underline">Marcar todas como lidas</button>
+                  <button onClick={onMarkAllRead} className="text-[10px] font-bold text-blue-600 hover:underline">Marcar todas como lidas</button>
                 </div>
                 <div className="max-h-80 overflow-y-auto custom-scrollbar">
                   {notifications.length > 0 ? notifications.map(n => (

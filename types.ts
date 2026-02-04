@@ -68,6 +68,7 @@ export interface Order {
   deliveryMethod: 'PICKUP' | 'DELIVERY';
   trackingCode?: string;
   trackingHistory?: { status: string; date: string; location?: string }[];
+  statusHistory: { status: OrderStatus; date: string }[];
 }
 
 export interface MembershipPlan {
@@ -114,6 +115,7 @@ export interface Appointment {
   paymentStatus?: 'PAID' | 'PENDING';
   isRescheduled?: boolean;
   isLate?: boolean;
+  customerRating?: number;
 }
 
 export interface QueueItem {

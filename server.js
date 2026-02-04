@@ -1,3 +1,4 @@
+
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -19,9 +20,10 @@ app.use(cors({
 app.use(express.json());
 
 // Inicialização da IA (Segura no Server-Side)
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Updated to use process.env.API_KEY as per SDK guidelines
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-// Mock de Serviços para Contexto da IA (Idealmente viria do banco de dados)
+// Mock de Serviços para Contexto da IA
 const SERVICES_CONTEXT = [
   { name: 'Corte de Cabelo', price: 50 },
   { name: 'Barba Terapia', price: 40 },
@@ -51,21 +53,30 @@ const getSystemInstruction = (role) => {
 
 app.post('/api/chat', async (req, res) => {
   try {
-    const { message, userRole } = req.body;
+    const { history, userRole } = req.body;
 
-    if (!message) {
-      return res.status(400).json({ error: 'Mensagem é obrigatória' });
+    if (!history || !Array.isArray(history) || history.length === 0) {
+      return res.status(400).json({ error: 'Histórico de mensagens inválido.' });
     }
 
-    // Seleção de modelo baseada no tier do usuário (exemplo de lógica de negócio no back)
+    // Mapeamento do formato do Frontend para o formato do Gemini (Content[])
+    // Frontend: { role: 'user' | 'assistant', text: '...' }
+    // Gemini: { role: 'user' | 'model', parts: [{ text: '...' }] }
+    const contents = history.map(msg => ({
+      role: msg.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: msg.text }]
+    }));
+
+    // Seleção de modelo baseada no tier do usuário
     const modelName = userRole === 'OWNER' ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview';
 
     const response = await ai.models.generateContent({
       model: modelName,
-      contents: message,
+      contents: contents,
       config: {
         systemInstruction: getSystemInstruction(userRole || 'CUSTOMER'),
-        temperature: 0.8,
+        temperature: 0.7,
+        // Removed maxOutputTokens to prevent potential blocking without a corresponding thinkingBudget config
       }
     });
 
@@ -73,7 +84,6 @@ app.post('/api/chat', async (req, res) => {
 
   } catch (error) {
     console.error('Erro no servidor Gemini:', error);
-    // Tratamento de erro robusto: não vaza stack trace para o cliente
     res.status(500).json({ 
       error: 'Erro interno ao processar inteligência artificial.',
       details: error.message 

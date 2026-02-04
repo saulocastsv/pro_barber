@@ -1,13 +1,12 @@
 
 import React, { useState } from 'react';
 import { Appointment, User, Service } from '../types';
-import { Clock, Plus, X, Calendar, User as UserIcon, Scissors } from 'lucide-react';
+import { Clock, Plus, X, Calendar as CalendarIcon, User as UserIcon, Scissors, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 
 interface CalendarViewProps {
   appointments: Appointment[];
   barbers: User[];
   services: Service[];
-  // Fix: changed from returning boolean to allowing Promise/void for async compatibility
   onAddAppointment: (appt: Partial<Appointment>) => boolean | Promise<boolean> | void;
 }
 
@@ -15,6 +14,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ appointments, barber
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newApptData, setNewApptData] = useState({ time: '', barberId: '', customerName: '', serviceId: '' });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
   const timeSlots: string[] = [];
   for (let i = 9; i <= 19; i++) {
@@ -24,8 +24,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ appointments, barber
 
   const getAppointmentForSlot = (barberId: string, time: string) => {
     return appointments.find(apt => {
-      const aptTime = `${apt.startTime.getHours().toString().padStart(2, '0')}:${apt.startTime.getMinutes().toString().padStart(2, '0')}`;
-      return apt.barberId === barberId && aptTime === time && apt.status !== 'CANCELLED';
+      const aptDate = new Date(apt.startTime);
+      const aptTime = `${aptDate.getHours().toString().padStart(2, '0')}:${aptDate.getMinutes().toString().padStart(2, '0')}`;
+      const isSameDay = aptDate.toDateString() === selectedDate.toDateString();
+      return apt.barberId === barberId && aptTime === time && apt.status !== 'CANCELLED' && isSameDay;
     });
   };
 
@@ -43,7 +45,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ appointments, barber
       e.preventDefault();
       
       const [h, m] = newApptData.time.split(':').map(Number);
-      const start = new Date();
+      const start = new Date(selectedDate);
       start.setHours(h, m, 0, 0);
 
       onAddAppointment({
@@ -58,76 +60,118 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ appointments, barber
       setTimeout(() => setToastMessage(null), 3000);
   };
 
+  const changeDate = (days: number) => {
+    const next = new Date(selectedDate);
+    next.setDate(next.getDate() + days);
+    setSelectedDate(next);
+  };
+
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[calc(100vh-140px)] animate-fade-in relative">
+    <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden flex flex-col h-[calc(100vh-160px)] animate-fade-in relative">
       
       {toastMessage && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-xl shadow-2xl z-50 flex items-center gap-2 animate-fade-in">
-              <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center"><Plus size={12} strokeWidth={4} /></div>
-              {toastMessage}
+          <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-brand-dark text-white px-6 py-3 rounded-2xl shadow-2xl z-50 flex items-center gap-3 animate-fade-in border border-white/10">
+              <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center text-white"><Plus size={14} strokeWidth={4} /></div>
+              <span className="text-xs font-black uppercase tracking-widest">{toastMessage}</span>
           </div>
       )}
 
-      <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-20">
+      {/* Header da Agenda Refinado */}
+      <div className="px-6 py-5 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center gap-4 bg-white sticky top-0 z-20">
         <div className="flex items-center gap-4">
-            <h2 className="text-xl font-bold text-slate-800">Agenda Diária</h2>
+            <div className="flex items-center bg-slate-50 p-1 rounded-xl border border-slate-100">
+                <button onClick={() => changeDate(-1)} className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-slate-400 hover:text-brand-dark"><ChevronLeft size={18}/></button>
+                <div className="px-4 flex flex-col items-center min-w-[140px]">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none mb-1">
+                        {selectedDate.toLocaleDateString('pt-BR', { weekday: 'short' })}
+                    </span>
+                    <span className="text-sm font-black text-brand-dark">
+                        {selectedDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                    </span>
+                </div>
+                <button onClick={() => changeDate(1)} className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-slate-400 hover:text-brand-dark"><ChevronRight size={18}/></button>
+            </div>
+            <button 
+              onClick={() => setSelectedDate(new Date())}
+              className="text-[10px] font-black text-slate-400 hover:text-brand-dark uppercase tracking-widest px-3 py-2 bg-slate-50 rounded-lg border border-slate-100 transition-all active:scale-95"
+            >
+              Hoje
+            </button>
         </div>
         
+        {/* Botão de Novo Agendamento - Posição de Destaque */}
         <button 
           onClick={() => openNewAppointment()}
-          className="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors shadow-lg flex items-center gap-2"
+          className="w-full md:w-auto bg-brand-dark text-white px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-[0.15em] hover:bg-black transition-all shadow-xl shadow-brand-dark/10 flex items-center justify-center gap-3 active:scale-95 group"
         >
-          <Plus size={16} /> Novo Agendamento
+          <div className="bg-white/10 p-1 rounded-lg group-hover:scale-110 transition-transform">
+            <Plus size={16} strokeWidth={3} />
+          </div>
+          Novo Agendamento
         </button>
       </div>
       
-      <div className="flex-1 overflow-auto bg-slate-50/50 relative custom-scrollbar">
-        <div className="min-w-[700px]">
-          <div className="flex border-b border-slate-200 sticky top-0 bg-white/90 backdrop-blur-md z-10 shadow-sm">
-            <div className="w-20 p-4 border-r border-slate-100 font-semibold text-slate-400 text-xs uppercase tracking-wider text-center flex items-center justify-center">
+      <div className="flex-1 overflow-auto bg-slate-50/30 relative custom-scrollbar">
+        <div className="min-w-[800px]">
+          {/* Cabeçalho dos Barbeiros */}
+          <div className="flex border-b border-slate-100 sticky top-0 bg-white/90 backdrop-blur-md z-10 shadow-sm">
+            <div className="w-24 p-4 border-r border-slate-50 font-black text-slate-300 text-[10px] uppercase tracking-widest text-center flex items-center justify-center">
                 Horário
             </div>
             {barbers.map(barber => (
-              <div key={barber.id} className="flex-1 p-3 border-r border-slate-100 flex items-center justify-center gap-3 min-w-[180px]">
-                <img src={barber.avatar} alt={barber.name} className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm"/>
+              <div key={barber.id} className="flex-1 p-4 border-r border-slate-50 flex items-center justify-center gap-4 min-w-[200px]">
+                <div className="relative">
+                    <img src={barber.avatar} alt={barber.name} className="w-10 h-10 rounded-xl object-cover border-2 border-white shadow-md"/>
+                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></div>
+                </div>
                 <div>
-                    <span className="block font-bold text-slate-800 text-sm">{barber.name.split(' ')[0]}</span>
+                    <span className="block font-black text-brand-dark text-sm tracking-tight">{barber.name.split(' ')[0]}</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Disponível</span>
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="divide-y divide-slate-100 bg-white">
+          <div className="divide-y divide-slate-50 bg-white">
             {timeSlots.map(time => (
-              <div key={time} className="flex h-28 group/row">
-                <div className="w-20 border-r border-slate-100 flex items-start justify-center pt-3 text-xs font-semibold text-slate-400 bg-slate-50/30 group-hover/row:bg-slate-50 transition-colors">
+              <div key={time} className="flex h-32 group/row">
+                <div className="w-24 border-r border-slate-50 flex items-start justify-center pt-4 text-[11px] font-black text-slate-400 bg-slate-50/20 group-hover/row:bg-slate-50 transition-colors">
                   {time}
                 </div>
 
                 {barbers.map(barber => {
                   const apt = getAppointmentForSlot(barber.id, time);
                   return (
-                    <div key={`${barber.id}-${time}`} className="flex-1 border-r border-slate-50 p-1.5 relative min-w-[180px] group/slot transition-colors hover:bg-slate-50/50">
+                    <div key={`${barber.id}-${time}`} className="flex-1 border-r border-slate-50 p-2 relative min-w-[200px] group/slot transition-colors hover:bg-slate-50/30">
                       {apt ? (
                         <div className={`
-                          w-full h-full rounded-xl p-3 border-l-[6px] shadow-sm flex flex-col justify-center cursor-pointer 
-                          transition-all duration-200 hover:shadow-md hover:scale-[1.02] hover:z-10 relative
+                          w-full h-full rounded-[1.5rem] p-4 border-l-[6px] shadow-sm flex flex-col justify-center cursor-pointer 
+                          transition-all duration-300 hover:shadow-xl hover:scale-[1.02] hover:z-10 relative group/card
                           ${apt.status === 'COMPLETED' 
-                            ? 'bg-blue-50 border-blue-500 text-blue-900' 
-                            : 'bg-emerald-50 border-emerald-500 text-emerald-900'}
+                            ? 'bg-slate-50 border-slate-400 text-slate-500 opacity-60' 
+                            : 'bg-white border-brand-dark text-brand-dark ring-1 ring-slate-100'}
                         `}>
-                          <p className="font-bold text-sm truncate leading-tight">{apt.customerName}</p>
-                          <p className="text-[10px] opacity-70 truncate font-medium uppercase mt-1">
+                          <div className="flex justify-between items-start mb-1">
+                             <p className="font-black text-sm tracking-tight truncate leading-tight pr-4">{apt.customerName}</p>
+                             {apt.status !== 'COMPLETED' && <CalendarDays size={12} className="text-brand-dark/20" />}
+                          </div>
+                          <p className="text-[9px] font-black uppercase tracking-widest opacity-60 mb-2 truncate">
                              {services.find(s => s.id === apt.serviceId)?.name || 'Serviço'}
                           </p>
+                          <div className="flex items-center gap-1">
+                             <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse"></div>
+                             <span className="text-[8px] font-bold uppercase tracking-widest">{apt.status === 'COMPLETED' ? 'Finalizado' : 'Confirmado'}</span>
+                          </div>
                         </div>
                       ) : (
-                        <div 
+                        <button 
                             onClick={() => openNewAppointment(time, barber.id)}
-                            className="w-full h-full rounded-xl border-2 border-dashed border-transparent hover:border-slate-200 hover:bg-slate-50 flex items-center justify-center cursor-pointer transition-all duration-200"
+                            className="w-full h-full rounded-[1.5rem] border-2 border-dashed border-transparent hover:border-slate-200 hover:bg-slate-50 flex items-center justify-center cursor-pointer transition-all duration-300 group/btn"
                         >
-                           <Plus size={20} className="text-slate-300 opacity-0 group-hover/slot:opacity-100" />
-                        </div>
+                           <div className="bg-slate-100 text-slate-300 p-2 rounded-xl group-hover/btn:bg-brand-dark group-hover/btn:text-white transition-all opacity-0 group-hover/slot:opacity-100 scale-75 group-hover/btn:scale-100">
+                             <Plus size={20} strokeWidth={3} />
+                           </div>
+                        </button>
                       )}
                     </div>
                   );
@@ -138,39 +182,49 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ appointments, barber
         </div>
       </div>
 
+      {/* Modal Novo Agendamento */}
       {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fade-in">
-              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-                  <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-                      <h3 className="text-lg font-bold text-slate-800">Novo Agendamento</h3>
-                      <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20}/></button>
-                  </div>
-                  <form onSubmit={handleSave} className="p-6 space-y-4">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-brand-dark/60 backdrop-blur-md p-4 animate-fade-in">
+              <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-slide-in">
+                  <div className="bg-slate-50 px-8 py-6 border-b border-slate-100 flex justify-between items-center">
                       <div>
-                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cliente</label>
-                          <input required type="text" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nome do cliente" value={newApptData.customerName} onChange={e => setNewApptData({...newApptData, customerName: e.target.value})} />
+                        <h3 className="text-xl font-black text-brand-dark tracking-tighter uppercase italic leading-none">Agendar Manual</h3>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Criação rápida de reserva</p>
+                      </div>
+                      <button onClick={() => setIsModalOpen(false)} className="p-2.5 bg-white hover:bg-slate-100 rounded-full text-slate-400 transition-all active:scale-90 shadow-sm border border-slate-100"><X size={18}/></button>
+                  </div>
+                  <form onSubmit={handleSave} className="p-8 space-y-5 bg-white">
+                      <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nome do Cliente</label>
+                          <div className="relative">
+                            <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                            <input required type="text" className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand-light font-bold text-sm" placeholder="Ex: Lucas Moura" value={newApptData.customerName} onChange={e => setNewApptData({...newApptData, customerName: e.target.value})} />
+                          </div>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Barbeiro</label>
-                            <select className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" value={newApptData.barberId} onChange={e => setNewApptData({...newApptData, barberId: e.target.value})}>
-                                {barbers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Barbeiro</label>
+                            <select className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-sm appearance-none cursor-pointer" value={newApptData.barberId} onChange={e => setNewApptData({...newApptData, barberId: e.target.value})}>
+                                {barbers.map(b => <option key={b.id} value={b.id}>{b.name.split(' ')[0]}</option>)}
                             </select>
                           </div>
                           <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Horário</label>
-                            <select className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" value={newApptData.time} onChange={e => setNewApptData({...newApptData, time: e.target.value})}>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Horário</label>
+                            <select className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-sm appearance-none cursor-pointer" value={newApptData.time} onChange={e => setNewApptData({...newApptData, time: e.target.value})}>
                                 {timeSlots.map(t => <option key={t} value={t}>{t}</option>)}
                             </select>
                           </div>
                       </div>
                       <div>
-                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Serviço</label>
-                          <select className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none" value={newApptData.serviceId} onChange={e => setNewApptData({...newApptData, serviceId: e.target.value})}>
-                              {services.map(s => <option key={s.id} value={s.id}>{s.name} - R${s.price}</option>)}
-                          </select>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Serviço Principal</label>
+                          <div className="relative">
+                            <Scissors className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                            <select className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-sm appearance-none cursor-pointer" value={newApptData.serviceId} onChange={e => setNewApptData({...newApptData, serviceId: e.target.value})}>
+                                {services.map(s => <option key={s.id} value={s.id}>{s.name} - R${s.price}</option>)}
+                            </select>
+                          </div>
                       </div>
-                      <button type="submit" className="w-full py-4 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all shadow-lg mt-4">Salvar Agendamento</button>
+                      <button type="submit" className="w-full py-5 bg-brand-dark text-white font-black rounded-2xl shadow-xl shadow-brand-dark/20 hover:bg-black transition-all mt-4 uppercase text-xs tracking-widest active:scale-95">Confirmar Reserva</button>
                   </form>
               </div>
           </div>
