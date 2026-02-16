@@ -1,32 +1,43 @@
 /** @type {import('tailwindcss').Config} */
-export default {
+module.exports = {
   content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
+    "./app/**/*.{js,ts,jsx,tsx}",
+    "./components/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+        sans: ['var(--font-inter)', 'Inter', 'sans-serif'],
       },
       colors: {
         brand: {
-          dark: '#081E26',      // Navy Teal Profundo
-          light: '#B8D0D9',     // Ice Blue (Acento)
-          gray: '#D9D9D9',      // Cinza Fundo
-          midGray: '#737373',   // Cinza Texto
-          black: '#0D0D0D',     // Preto Títulos
+          dark: '#081E26',
+          light: '#B8D0D9',
+          accent: '#3B82F6',
+          gray: '#F8FAFC',
+          midGray: '#64748B',
+          black: '#0F172A',
         },
       },
       animation: {
-        'fade-in': 'fadeInUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
+        'fade-in': 'fadeInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+        'slide-in': 'slideIn 0.4s ease-out forwards',
+        'pulse-soft': 'pulseSoft 2s infinite',
       },
       keyframes: {
         fadeInUp: {
-          'from': { opacity: '0', transform: 'translateY(10px) scale(0.99)' },
-          'to': { opacity: '1', transform: 'translateY(0) scale(1)' },
-        }
-      }
+          '0%': { opacity: '0', transform: 'translateY(10px) scale(0.98)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+        },
+        slideIn: {
+          '0%': { transform: 'translateX(-20px)', opacity: '0' },
+          '100%': { transform: 'translateX(0)', opacity: '1' },
+        },
+        pulseSoft: {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.7' },
+        },
+      },
     },
   },
   plugins: [],

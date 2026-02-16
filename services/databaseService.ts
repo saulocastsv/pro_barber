@@ -1,6 +1,6 @@
 
 import { supabase } from './supabaseClient';
-import { User, Appointment, Service, InventoryItem, Order, OrderStatus } from '../types';
+import { User, Appointment, Service, InventoryItem, Order, OrderStatus } from '@/types';
 
 /**
  * Camada de Abstração de Dados (Data Access Layer)

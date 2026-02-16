@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { UserRole, User } from '../types';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 import { db } from '../services/databaseService';
+import { MOCK_USERS } from '../constants';
 import { Scissors, Lock, Mail, User as UserIcon, Loader2, Store, AlertCircle } from 'lucide-react';
 
 interface AuthScreenProps {
