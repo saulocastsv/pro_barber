@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { User, UserRole, Notification } from '../types';
 import { 
   LayoutDashboard, Calendar, Scissors, Users, DollarSign, LogOut, 
@@ -91,10 +92,14 @@ export const Layout: React.FC<LayoutProps> = ({
       `}>
         <div className={`h-16 flex items-center ${isCollapsed ? 'justify-center' : 'px-6'} border-b border-white/5`}>
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => onNavigate('dashboard')}>
-            <div className="w-8 h-8 bg-brand-light rounded-lg flex items-center justify-center text-brand-dark shadow-lg">
-               <Scissors size={18} /> 
-            </div>
-            {!isCollapsed && <span className="text-lg font-extrabold tracking-tighter italic">BARVO</span>}
+            <Image
+              src="/logo-branco.png"
+              alt="Barvo"
+              width={32}
+              height={32}
+              className="object-contain"
+            />
+            {!isCollapsed && <span className="text-lg font-extrabold tracking-tighter italic text-white">BARVO</span>}
           </div>
           {isMobileMenuOpen && (
             <button onClick={() => setIsMobileMenuOpen(false)} className="ml-auto p-1.5 md:hidden text-white/50">

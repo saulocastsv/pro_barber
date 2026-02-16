@@ -1,12 +1,19 @@
 
-import { supabase } from './supabaseClient';
+import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { User, Appointment, Service, InventoryItem, Order, OrderStatus } from '@/types';
+import localDb from './localDatabase';
 
 /**
  * Camada de Abstração de Dados (Data Access Layer)
  * Centraliza todas as chamadas ao Supabase para manter o código limpo e fácil de testar.
  */
-export const db = {
+const useDemo = process.env.NEXT_PUBLIC_DEMO_DB === 'true' || !isSupabaseConfigured();
+
+if (useDemo) {
+  console.info('⚠️ Usando demo DB em memória (NEXT_PUBLIC_DEMO_DB=true ou Supabase não configurado)');
+}
+
+const supabaseDb = {
   // --- PERFIS & AUTENTICAÇÃO ---
   async getProfile(userId: string) {
     try {
@@ -44,13 +51,23 @@ export const db = {
     return data;
   },
 
+  async createBarbershop(shop: any) {
+    const { data, error } = await supabase
+      .from('barbershops')
+      .insert([shop])
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
   async getBarbershopById(shopId: string) {
     const { data, error } = await supabase
       .from('barbershops')
       .select('*')
       .eq('id', shopId)
       .single();
-    if (error) throw error;
+    if (error) return null;
     return data;
   },
 
@@ -167,3 +184,5 @@ export const db = {
     if (error) throw error;
   }
 };
+
+export const db = useDemo ? (localDb as any) : (supabaseDb as any);

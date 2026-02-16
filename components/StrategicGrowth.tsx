@@ -65,6 +65,25 @@ export const StrategicGrowth: React.FC<StrategicGrowthProps> = ({ services, plan
     }));
   };
 
+  const calculatePlanMetrics = () => {
+    const selectedServices = services.filter(s => simData.includedServiceIds.includes(s.id));
+    const avgServicePrice = selectedServices.length ? selectedServices.reduce((sum, s) => sum + s.price, 0) / selectedServices.length : 0;
+    const avgServiceCost = selectedServices.length ? selectedServices.reduce((sum, s) => sum + s.cost, 0) / selectedServices.length : 0;
+    const monthlyServicesCost = avgServiceCost * simData.servicesPerMonth;
+    const margin = simData.price > 0 ? ((simData.price - monthlyServicesCost) / simData.price * 100) : 0;
+    const ltv = simData.price > 0 ? (simData.price - monthlyServicesCost) * 12 : 0;
+    return {
+      avgServicePrice,
+      avgServiceCost,
+      monthlyServicesCost,
+      margin: Math.max(0, margin),
+      ltv: Math.max(0, ltv),
+      break_even_months: monthlyServicesCost > 0 ? Math.ceil(simData.price / monthlyServicesCost) : 0
+    };
+  };
+
+  const metrics = calculatePlanMetrics();
+
   const MetricCard: React.FC<{title: string, value: string, trend: string, icon: React.ReactNode, color: string}> = ({
     title, value, trend, icon, color
   }) => (
@@ -281,15 +300,17 @@ export const StrategicGrowth: React.FC<StrategicGrowthProps> = ({ services, plan
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
                   <div>
                     <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Margem</span>
-                    <span className="text-2xl font-black text-emerald-400">72%</span>
+                    <span className={`text-2xl font-black ${metrics.margin >= 50 ? 'text-emerald-400' : metrics.margin >= 30 ? 'text-amber-400' : 'text-red-400'}`}>
+                      {metrics.margin.toFixed(1)}%
+                    </span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Custo Médio / Mês</span>
-                    <span className="text-2xl font-black text-red-400">R$ 28,00</span>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Custo Mensal</span>
+                    <span className="text-2xl font-black text-slate-300">R$ {metrics.monthlyServicesCost.toFixed(2)}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">LTV Projetado</span>
-                    <span className="text-2xl font-black text-blue-400">R$ 1.200</span>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">LTV Anual</span>
+                    <span className="text-2xl font-black text-blue-400">R$ {metrics.ltv.toFixed(0)}</span>
                   </div>
                 </div>
               </div>

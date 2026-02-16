@@ -69,6 +69,7 @@ export interface Order {
   trackingCode?: string;
   trackingHistory?: { status: string; date: string; location?: string }[];
   statusHistory: { status: OrderStatus; date: string }[];
+  barbershop_id?: string;
 }
 
 export interface MembershipPlan {
@@ -100,6 +101,7 @@ export interface Service {
   cost: number;
   margin: number;
   description: string;
+  barbershop_id?: string;
 }
 
 export interface Appointment {
@@ -151,6 +153,7 @@ export interface InventoryItem {
   price: number;
   minLevel: number;
   category: string;
+  barbershop_id?: string;
 }
 
 export interface Campaign {
