@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Calendar, Scissors, Users, DollarSign, LogOut, 
   Menu, X, Clock, Bell, List, ShoppingBag, Megaphone, ClipboardList, 
   Store, PanelLeftClose, PanelLeftOpen, Settings as SettingsIcon, 
-  TrendingUp, Tags, MoreHorizontal, PackageSearch, Package, Check 
+  TrendingUp, Tags, MoreHorizontal, PackageSearch, Package, Check, BarChart3
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -57,6 +57,7 @@ export const Layout: React.FC<LayoutProps> = ({
     { id: 'queue', label: 'Fila', icon: Clock, roles: [UserRole.OWNER, UserRole.BARBER] },
     { id: 'services', label: 'Serviços', icon: Tags, roles: [UserRole.OWNER] }, 
     { id: 'strategic', label: 'Assinaturas', icon: TrendingUp, roles: [UserRole.OWNER] }, 
+    { id: 'investor', label: 'Visão Investidor', icon: BarChart3, roles: [UserRole.OWNER] },
     { id: 'booking', label: 'Reservar', icon: Scissors, roles: [UserRole.CUSTOMER] },
     { id: 'appointments', label: 'Cortes', icon: List, roles: [UserRole.CUSTOMER] },
     { id: 'shop', label: 'Loja', icon: Store, roles: [UserRole.CUSTOMER] }, 

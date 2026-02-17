@@ -22,6 +22,7 @@ import { Shop } from '@/components/Shop';
 import { OrderManagement } from '@/components/OrderManagement';
 import { CustomerOrders } from '@/components/CustomerOrders';
 import { StrategicGrowth } from '@/components/StrategicGrowth';
+import { InvestorDashboard } from '@/components/InvestorDashboard';
 
 import { supabase, isSupabaseConfigured } from '@/services/supabaseClient';
 import { db } from '@/services/databaseService';
@@ -271,6 +272,21 @@ export default function Page() {
             inventory={inventory}
             onPurchase={async (cartItems, totalPaid, _pointsUsed, _pointsDiscount) => {
               try {
+                // Decrementar inventário
+                cartItems.forEach(cartItem => {
+                  if (cartItem.id.startsWith('inv_')) {
+                    const inventoryItemId = cartItem.id.replace('inv_', '');
+                    const inventoryItem = inventory.find(i => i.id === inventoryItemId);
+                    if (inventoryItem && inventoryItem.quantity >= cartItem.quantity) {
+                      setInventory(prev => prev.map(item => 
+                        item.id === inventoryItemId 
+                          ? { ...item, quantity: item.quantity - cartItem.quantity }
+                          : item
+                      ));
+                    }
+                  }
+                });
+
                 if (isSupabaseConfigured() && currentUser) {
                   const shopId = currentUser.role === UserRole.OWNER
                     ? (await db.getBarbershopByOwner(currentUser.id))?.id
@@ -363,6 +379,9 @@ export default function Page() {
 
       case 'strategic':
         return <StrategicGrowth services={services} plans={membershipPlans} setPlans={setMembershipPlans} currentUser={currentUser || undefined} />;
+
+      case 'investor':
+        return <InvestorDashboard appointments={appointments} membershipPlans={membershipPlans} services={services} users={users} />;
 
       case 'settings':
         return <Settings currentUser={currentUser!} settings={shopSettings} onUpdateSettings={setShopSettings} onUpdateUser={setCurrentUser} />;

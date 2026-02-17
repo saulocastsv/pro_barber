@@ -5,9 +5,11 @@ import { AvatarComponent } from './AvatarComponent';
 import { 
   Scissors, Check, ChevronLeft, ChevronRight, AlertCircle, Clock, 
   Loader2, MessageCircle, CreditCard, Wallet, Copy, Timer, Zap, 
-  ArrowRight, Smartphone, CheckCircle 
+  ArrowRight, Smartphone, CheckCircle, Gift
 } from 'lucide-react';
 import { User, UserRole, Service, Appointment, ShopSettings, PaymentMethod, BarberAvailabilityException } from '../types';
+import { isSubscribed, getActiveMembership, canUseSubscriptionService, incrementServiceUsage } from '../services/membershipService';
+import { calculateSubscriberPrice, calculatePointsDiscount, calculateFinalPriceWithPoints } from '../services/calculationsService';
 
 interface BookingFlowProps {
   currentUser: User | null;
@@ -118,8 +120,50 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
 
   const selectedServices = services.filter(s => selection.serviceIds.includes(s.id));
   const totalDuration = selectedServices.reduce((acc, s) => acc + s.durationMinutes, 0);
-  const totalPrice = selectedServices.reduce((acc, s) => acc + Number(s.price), 0);
-  const selectedBarber = barbers.find(b => b.id === selection.barberId);
+  const baseTotalPrice = selectedServices.reduce((acc, s) => acc + Number(s.price), 0);
+  
+  // ============ LÓGICA DE ASSINATURA E DESCONTO ============
+  const customerForSubscription = initialData?.customerId ? MOCK_USERS.find(u => u.id === initialData.customerId) : currentUser;
+  const hasSubscription = customerForSubscription ? isSubscribed(customerForSubscription.id, customerForSubscription) : false;
+  const activeMembership = customerForSubscription ? getActiveMembership(customerForSubscription.id) : null;
+  
+  // Calcular desconto se tiver assinatura
+  let totalPrice = baseTotalPrice;
+  let subscriberDiscount = 0;
+  let discountPercentage = 0;
+  let canUseAllServices = true;
+  let servicesRemaining = 0;
+  
+  if (hasSubscription && customerForSubscription) {
+    // Verificar se pode usar serviços com assinatura
+    const firstServiceId = selection.serviceIds[0];
+    if (firstServiceId) {
+      const canUse = canUseSubscriptionService(customerForSubscription.id, 4); // 4 = default do plano básico
+      canUseAllServices = canUse;
+      
+      // Se não pode usar, mostrar aviso
+      if (!canUseAllServices) {
+        // Limitar a usar apenas o que sobrou
+        const usage = incrementServiceUsage(customerForSubscription.id, 4);
+        servicesRemaining = usage.remaining;
+      }
+    }
+    
+    // Aplicar desconto de 15% para assinantes
+    const discountInfo = calculateSubscriberPrice(baseTotalPrice, 0.15);
+    totalPrice = discountInfo.finalPrice;
+    subscriberDiscount = discountInfo.discountAmount;
+    discountPercentage = discountInfo.savingsPercentage;
+  }
+  
+  // Aplicar desconto de pontos se houver e estiver marcado
+  let pointsApplied = 0;
+  let pointsDiscount = 0;
+  if (currentUser?.points && currentUser.points >= 100) {
+    // Oferecemos usar pontos, mas o cliente decide na etapa de pagamento
+  }
+  
+  const selectedBarber = MOCK_USERS.find(b => b.id === selection.barberId);
 
   const showToast = (message: string, type: 'success' | 'error') => {
       setToast({ message, type });
@@ -241,8 +285,14 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
             customerName: finalCustomerName,
             customerId: finalCustomerId,
             paymentMethod: selection.paymentMethod,
-            paymentStatus: selection.paymentMethod !== 'PRESENTIAL' ? 'PAID' : 'PENDING'
+            paymentStatus: selection.paymentMethod !== 'PRESENTIAL' ? 'PAID' : 'PENDING',
+            isMembershipUsage: hasSubscription // Marcar se usou assinatura
           });
+          
+          // Incrementar uso de assinatura se aplicável
+          if (hasSubscription && customerForSubscription) {
+            incrementServiceUsage(customerForSubscription.id, 4); // 4 = serviços default do plano básico
+          }
       });
 
       setTimeout(() => {
@@ -289,17 +339,28 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
             <div className="space-y-4 animate-fade-in flex-1 flex flex-col">
                 <div className="flex items-center justify-between mb-2">
                     <h2 className="text-lg font-black text-brand-dark uppercase tracking-tighter">Serviços</h2>
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{selectedServices.length} selecionado</span>
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{selectedServices.length} selecionado</span>
+                        {hasSubscription && (
+                            <span className="text-[10px] font-black px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full uppercase">✓ Assinante</span>
+                        )}
+                    </div>
                 </div>
                 <div className="grid gap-2 pb-24 overflow-y-auto custom-scrollbar">
                     {services.map(service => {
                         const isSelected = selection.serviceIds.includes(service.id);
+                        const serviceDiscount = hasSubscription ? (service.price * 0.15) : 0;
                         return (
                             <button
                                 key={service.id}
                                 onClick={() => toggleService(service.id)}
-                                className={`w-full text-left p-4 md:p-5 border-2 rounded-2xl transition-all ${isSelected ? 'border-brand-dark bg-white shadow-md ring-4 ring-brand-dark/5' : 'border-slate-100 bg-white'}`}
+                                className={`w-full text-left p-4 md:p-5 border-2 rounded-2xl transition-all relative ${isSelected ? 'border-brand-dark bg-white shadow-md ring-4 ring-brand-dark/5' : 'border-slate-100 bg-white'}`}
                             >
+                                {hasSubscription && (
+                                    <div className="absolute -top-2 -right-2 bg-emerald-500 text-white text-[10px] font-black px-2 py-1 rounded-full">
+                                        -15%
+                                    </div>
+                                )}
                                 <div className="flex justify-between items-center">
                                     <div className="flex items-center gap-4">
                                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${isSelected ? 'bg-brand-dark text-white' : 'bg-slate-100 text-slate-400'}`}>
@@ -310,7 +371,14 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
                                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{service.durationMinutes} min</span>
                                         </div>
                                     </div>
-                                    <div className={`text-base font-black ${isSelected ? 'text-brand-dark' : 'text-slate-900'}`}>R$ {Number(service.price).toFixed(0)}</div>
+                                    <div className="text-right">
+                                        {hasSubscription && serviceDiscount > 0 && (
+                                            <div className="text-[10px] text-slate-400 line-through">R$ {Number(service.price).toFixed(0)}</div>
+                                        )}
+                                        <div className={`text-base font-black ${isSelected ? 'text-brand-dark' : 'text-slate-900'}`}>
+                                            R$ {hasSubscription ? (service.price - serviceDiscount).toFixed(0) : Number(service.price).toFixed(0)}
+                                        </div>
+                                    </div>
                                 </div>
                             </button>
                         );
@@ -470,9 +538,33 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
                             </div>
                         ))}
                     </div>
-                    <div className="pt-6 border-t-2 border-slate-200/50 flex justify-between items-center">
-                        <span className="text-xl font-black text-slate-900 tracking-tighter uppercase">Total</span>
-                        <span className="text-3xl font-black text-slate-900 tracking-tighter">R$ {totalPrice.toFixed(2)}</span>
+                    <div className="pt-6 border-t-2 border-slate-200/50 space-y-4">
+                        {/* Mostrar desconto de assinatura se aplicável */}
+                        {hasSubscription && subscriberDiscount > 0 && (
+                            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-start gap-3">
+                                <Gift size={18} className="text-emerald-600 mt-0.5 flex-shrink-0" fill="currentColor" />
+                                <div className="flex-1">
+                                    <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-1">Desconto Assinante</p>
+                                    <p className="text-sm font-black text-emerald-900">-R$ {subscriberDiscount.toFixed(2)} ({discountPercentage.toFixed(0)}%)</p>
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* Aviso se não puder usar mais serviços */}
+                        {hasSubscription && !canUseAllServices && (
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+                                <AlertCircle size={18} className="text-amber-600 mt-0.5 flex-shrink-0" />
+                                <div>
+                                    <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-1">Limite de Serviços</p>
+                                    <p className="text-xs text-amber-800">Você tem {servicesRemaining} serviços restantes neste mês.</p>
+                                </div>
+                            </div>
+                        )}
+                        
+                        <div className="flex justify-between items-center">
+                            <span className="text-xl font-black text-slate-900 tracking-tighter uppercase">Total</span>
+                            <span className="text-3xl font-black text-slate-900 tracking-tighter">R$ {totalPrice.toFixed(2)}</span>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -7,6 +7,7 @@ import {
   Trash2, Check, CreditCard, Loader2, ArrowRight, CheckCircle, 
   ShieldCheck, Zap, Copy, Timer, Star, Receipt, Tag as TagIcon
 } from 'lucide-react';
+import { calculatePointsDiscount, canRedeemPoints, calculatePointsEarned } from '../services/calculationsService';
 
 interface ShopProps {
   currentUser: User;
@@ -82,8 +83,12 @@ export const Shop: React.FC<ShopProps> = ({ currentUser, inventory, onPurchase }
 
   const cartTotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   const currentPoints = currentUser.points || 0;
-  const maxDiscountValue = currentPoints / LOYALTY_RULES.DISCOUNT_CONVERSION_RATE;
-  const discount = usePoints ? Math.min(maxDiscountValue, cartTotal * 0.5) : 0; 
+  
+  // Usar funções centralizadas de cálculo de pontos
+  const canUsePoints = canRedeemPoints(currentPoints);
+  const maxDiscountValue = calculatePointsDiscount(currentPoints);
+  const discount = usePoints && canUsePoints ? Math.min(maxDiscountValue, cartTotal * 0.5) : 0; 
+  const pointsToUseForDiscount = usePoints ? Math.floor(discount * LOYALTY_RULES.DISCOUNT_CONVERSION_RATE) : 0;
   const finalTotal = cartTotal - discount;
 
   const addToCart = (product: StoreProduct) => {
@@ -135,7 +140,7 @@ export const Shop: React.FC<ShopProps> = ({ currentUser, inventory, onPurchase }
             return;
         }
 
-        const pointsEarned = !usePoints ? Math.floor(finalTotal * LOYALTY_RULES.POINTS_PER_CURRENCY) : 0;
+        const pointsEarned = !usePoints ? calculatePointsEarned(finalTotal) : 0;
 
         setTimeout(() => {
             setIsProcessingCheckout(false);
@@ -334,7 +339,7 @@ export const Shop: React.FC<ShopProps> = ({ currentUser, inventory, onPurchase }
                                <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">
                                   <Zap size={16} />
                                </div>
-                               <p className="text-[10px] font-bold text-emerald-800 uppercase leading-tight">Você ganhará <span className="font-black underline">{Math.floor(finalTotal)} pontos</span> com esta compra!</p>
+                               <p className="text-[10px] font-bold text-emerald-800 uppercase leading-tight">Você ganhará <span className="font-black underline">{calculatePointsEarned(finalTotal)} pontos</span> com esta compra!</p>
                             </div>
                          </div>
                       )}
