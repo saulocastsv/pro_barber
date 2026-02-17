@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Order, OrderStatus, User } from '../types';
+import { AvatarComponent } from './AvatarComponent';
 import { 
   Search, Filter, Package, Truck, CheckCircle, Clock, AlertTriangle, 
   ChevronRight, X, User as UserIcon, DollarSign, ExternalLink, 
@@ -162,7 +163,7 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({ orders, users,
                           return (
                               <div className="space-y-6">
                                   <div className="flex items-center gap-4">
-                                      <img src={customer?.avatar || 'https://picsum.photos/100/100'} className="w-14 h-14 rounded-2xl object-cover border-2 border-white shadow-sm" alt="Avatar" />
+                                      <AvatarComponent url={customer?.avatar} name={customer?.name} size="md" className="!w-14 !h-14 border-2 border-white shadow-sm" />
                                       <div>
                                           <p className="font-bold text-slate-800 text-sm leading-tight">{selectedOrder.customerName}</p>
                                           <p className="text-[10px] text-slate-400 mt-1 font-bold uppercase">{customer?.membershipId ? 'Clube Barvo' : 'Cliente Avulso'}</p>

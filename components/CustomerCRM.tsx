@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Service, User, TechnicalNote, Appointment } from '../types';
+import { AvatarComponent } from './AvatarComponent';
 import { Search, FileText, History, ChevronLeft, Crown, Smartphone, CreditCard, RefreshCw, AlertTriangle, Calendar, Star } from 'lucide-react';
 
 interface CustomerCRMProps {
@@ -58,7 +59,7 @@ export const CustomerCRM: React.FC<CustomerCRMProps> = ({ services, notes, onSav
             <div className="flex-1 overflow-y-auto custom-scrollbar">
                 {processedCustomers.map(customer => (
                     <div key={customer.id} onClick={() => setSelectedCustomerId(customer.id)} className={`p-4 border-b border-slate-50 cursor-pointer transition-all hover:bg-slate-50 flex items-center gap-3 ${selectedCustomerId === customer.id ? 'bg-blue-50 border-blue-100' : ''}`}>
-                        <img src={customer.avatar} className="w-12 h-12 rounded-full object-cover border" alt={customer.name} />
+                        <AvatarComponent url={customer.avatar} name={customer.name} size="md" className="!w-12 !h-12 rounded-full border" />
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
                                 <h4 className="font-bold text-sm truncate">{customer.name}</h4>
@@ -81,7 +82,7 @@ export const CustomerCRM: React.FC<CustomerCRMProps> = ({ services, notes, onSav
                         <div className="flex items-center gap-4">
                             <button onClick={() => setSelectedCustomerId(null)} className="lg:hidden p-2 text-slate-500 hover:bg-slate-200 rounded-full mr-1"><ChevronLeft size={24} /></button>
                             <div className="relative">
-                                <img src={selectedCustomer.avatar} className="w-16 h-16 rounded-2xl shadow-md object-cover border-4 border-white" alt="Avatar" />
+                                <AvatarComponent url={selectedCustomer.avatar} name={selectedCustomer.name} size="lg" className="!w-16 !h-16 shadow-md border-4 border-white" />
                                 {selectedCustomer.isVIP && (
                                     <div className="absolute -top-2 -right-2 bg-amber-500 text-white p-1 rounded-full border-2 border-white shadow-sm">
                                         <Star size={12} fill="currentColor" />

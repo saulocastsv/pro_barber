@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Appointment, User, Service } from '../types';
+import { AvatarComponent } from './AvatarComponent';
 import { Clock, Calendar, MapPin, Scissors, RefreshCw, XCircle, AlertTriangle, Plus, Check, FileText, CalendarDays, MoreVertical, Trash2 } from 'lucide-react';
 import { MOCK_USERS } from '../constants';
 
@@ -167,7 +168,7 @@ export const CustomerAppointments: React.FC<CustomerAppointmentsProps> = ({ curr
                 
                 <div className="flex flex-col md:flex-row items-center justify-center md:justify-start gap-2 md:gap-6 text-sm text-slate-500 mb-4">
                     <div className="flex items-center gap-2 bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
-                        <img src={barber?.avatar} className="w-5 h-5 rounded-full object-cover" alt={barber?.name} />
+                        <AvatarComponent url={barber?.avatar} name={barber?.name} size="sm" className="-m-2 w-5 h-5 rounded-full" />
                         <span className="font-medium">{barber?.name}</span>
                     </div>
                     <div className="flex items-center gap-1">
@@ -309,9 +310,7 @@ export const CustomerAppointments: React.FC<CustomerAppointmentsProps> = ({ curr
                                 </div>
 
                                 <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-slate-100 rounded-xl overflow-hidden">
-                                        <img src={barber?.avatar} alt={barber?.name} className="w-full h-full object-cover" />
-                                    </div>
+                                    <AvatarComponent url={barber?.avatar} name={barber?.name} size="md" />
                                     <div>
                                         <p className="text-xs text-slate-400 font-bold uppercase">Profissional</p>
                                         <p className="font-bold text-slate-800 text-lg">{barber?.name}</p>

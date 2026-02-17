@@ -5,7 +5,7 @@ import { UserRole, User } from '../types';
 import authService from '../services/authService';
 import { db } from '../services/databaseService';
 import { MOCK_USERS } from '../constants';
-import { Lock, Mail, User as UserIcon, Loader2, Store, AlertCircle, Check, Eye, EyeOff } from 'lucide-react';
+import { Lock, Mail, User as UserIcon, Loader2, Store, AlertCircle, Check, Eye, EyeOff, Chrome } from 'lucide-react';
 
 interface AuthScreenProps {
   onLogin: (user: User) => void;
@@ -283,7 +283,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onGuestContinue
 
             <div className="grid grid-cols-1 gap-2">
               <button className="flex items-center justify-center gap-2 py-2 px-4 border-2 border-brand-light rounded-lg hover:border-brand-accent hover:bg-brand-gray transition-all font-medium text-xs text-brand-dark">
-                <img src="/google-icon.svg" alt="Google" className="w-4 h-4" />
+                <Chrome size={16} />
                 <span>Continuar com Google</span>
               </button>
             </div>

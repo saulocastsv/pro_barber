@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Appointment, User, Service } from '../types';
+import { AvatarComponent } from './AvatarComponent';
 import { Clock, Plus, X, Calendar as CalendarIcon, User as UserIcon, Scissors, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 
 interface CalendarViewProps {
@@ -121,7 +122,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ appointments, barber
             {barbers.map(barber => (
               <div key={barber.id} className="flex-1 p-4 border-r border-slate-50 flex items-center justify-center gap-4 min-w-[200px]">
                 <div className="relative">
-                    <img src={barber.avatar} alt={barber.name} className="w-10 h-10 rounded-xl object-cover border-2 border-white shadow-md"/>
+                    <AvatarComponent url={barber.avatar} name={barber.name} size="sm" className="w-10 h-10 border-2 border-white shadow-md" />
                     <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></div>
                 </div>
                 <div>

@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { User, UserRole, Notification } from '../types';
+import { AvatarComponent } from './AvatarComponent';
 import { 
   LayoutDashboard, Calendar, Scissors, Users, DollarSign, LogOut, 
   Menu, X, Clock, Bell, List, ShoppingBag, Megaphone, ClipboardList, 
@@ -199,12 +200,12 @@ export const Layout: React.FC<LayoutProps> = ({
             )}
 
             {currentUser && (
-               <img 
-                src={currentUser.avatar} 
-                className="w-7 h-7 rounded-lg object-cover border border-slate-100 cursor-pointer hover:ring-2 hover:ring-brand-light transition-all" 
-                alt="Profile" 
+              <button
                 onClick={() => onNavigate('settings')}
-               />
+                className="hover:opacity-80 transition-all"
+              >
+                <AvatarComponent url={currentUser.avatar} name={currentUser.name} size="sm" className="cursor-pointer" />
+              </button>
             )}
           </div>
         </header>

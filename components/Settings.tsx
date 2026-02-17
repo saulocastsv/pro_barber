@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { User, ShopSettings, UserRole, UserPaymentMethod } from '../types';
+import { AvatarComponent } from './AvatarComponent';
 import { Store, User as UserIcon, Clock, MapPin, Phone, Save, Camera, Percent, Globe, CreditCard, Plus, Trash2, CheckCircle2, ShieldCheck, X } from 'lucide-react';
 
 interface SettingsProps {
@@ -108,8 +109,8 @@ export const Settings: React.FC<SettingsProps> = ({ currentUser, settings, onUpd
           <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
               <form onSubmit={handleSaveProfile} className="space-y-6">
                   <div className="flex items-center gap-6 mb-8">
-                      <div className="relative group cursor-pointer">
-                          <img src={userProfile.avatar} alt="Avatar" className="w-24 h-24 rounded-3xl object-cover border-4 border-white shadow-xl" />
+                      <div className="relative group cursor-pointer w-24 h-24">
+                          <AvatarComponent url={userProfile.avatar} name={userProfile.name} size="lg" className="!w-full !h-full rounded-3xl border-4 border-white shadow-xl" />
                           <div className="absolute inset-0 bg-black/40 rounded-3xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                               <Camera className="text-white" size={24} />
                           </div>

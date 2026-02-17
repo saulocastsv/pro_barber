@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { UserRole, User } from '../types';
+import { AvatarComponent } from './AvatarComponent';
 import { Star, TrendingUp, Scissors, Phone, Mail, MoreHorizontal, Plus, X, Trash2, Edit } from 'lucide-react';
 
 interface TeamProps {
@@ -69,7 +70,7 @@ export const Team: React.FC<TeamProps> = ({ barbers, setUsers }) => {
                 </div>
                 <div className="px-6 pb-6 relative">
                     <div className="flex justify-between items-end -mt-10 mb-4">
-                        <img src={barbeiro.avatar} alt={barbeiro.name} className="w-20 h-20 rounded-2xl border-4 border-white shadow-md object-cover" />
+                        <AvatarComponent url={barbeiro.avatar} name={barbeiro.name} size="lg" className="!w-20 !h-20 border-4 border-white shadow-md" />
                         <div className="text-right">
                              <div className="flex items-center justify-end gap-1 text-amber-500 font-bold text-sm mb-1">
                                 4.9 <Star size={14} fill="currentColor" />

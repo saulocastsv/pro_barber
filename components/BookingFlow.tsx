@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { MOCK_USERS } from '../constants';
+import { AvatarComponent } from './AvatarComponent';
 import { 
   Scissors, Check, ChevronLeft, ChevronRight, AlertCircle, Clock, 
   Loader2, MessageCircle, CreditCard, Wallet, Copy, Timer, Zap, 
@@ -334,7 +335,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
                 <div className="grid grid-cols-2 gap-4">
                     {barbers.map(barber => (
                         <button key={barber.id} onClick={() => { setSelection({...selection, barberId: barber.id}); handleNextStep(); }} className={`p-6 border-2 rounded-[2rem] bg-white transition-all flex flex-col items-center gap-3 active:scale-95 ${selection.barberId === barber.id ? 'border-brand-dark shadow-xl ring-4 ring-brand-dark/5' : 'border-slate-100'}`}>
-                            <img src={barber.avatar} className="w-20 h-20 rounded-2xl object-cover shadow-lg border-2 border-white" alt={barber.name} />
+                            <AvatarComponent url={barber.avatar} name={barber.name} size="lg" className="!w-20 !h-20 shadow-lg border-2 border-white" />
                             <span className="font-black text-brand-dark text-sm uppercase tracking-tighter">{barber.name.split(' ')[0]}</span>
                         </button>
                     ))}

@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { MOCK_STRATEGIC_STATS, MOCK_USERS } from '../constants';
 import { MembershipPlan, StrategicStats, Service, User } from '../types';
+import { AvatarComponent } from './AvatarComponent';
 import { 
   Award, TrendingUp, Users, Target, Activity, Zap, RefreshCw, 
   Crown, AlertTriangle, AlertCircle, ArrowUpRight, BarChart3, Clock, 
@@ -177,7 +178,7 @@ export const StrategicGrowth: React.FC<StrategicGrowthProps> = ({ services, plan
                                   <tr key={sub.id} className="hover:bg-slate-50 transition-colors">
                                       <td className="px-6 py-4">
                                           <div className="flex items-center gap-3">
-                                              <img src={sub.avatar} className="w-10 h-10 rounded-xl object-cover" />
+                                              <AvatarComponent url={sub.avatar} name={sub.name} size="sm" className="!w-10 !h-10" />
                                               <div>
                                                   <p className="font-bold text-brand-dark text-sm">{sub.name}</p>
                                                   <p className="text-[10px] text-slate-400">{sub.email}</p>
