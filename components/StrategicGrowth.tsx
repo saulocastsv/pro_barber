@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MOCK_STRATEGIC_STATS, MOCK_USERS } from '../constants';
 import { MembershipPlan, StrategicStats, Service, User } from '../types';
 import { AvatarComponent } from './AvatarComponent';
@@ -7,23 +7,36 @@ import {
   Award, TrendingUp, Users, Target, Activity, Zap, RefreshCw, 
   Crown, AlertTriangle, AlertCircle, ArrowUpRight, BarChart3, Clock, 
   DollarSign, Heart, CheckCircle, Plus, X, PieChart, 
-  Info, ChevronLeft, ArrowRight, Wallet, Scissors, Tag, Hash, Coins, Search, History, Repeat
+  Info, ChevronLeft, ArrowRight, Wallet, Scissors, Tag, Hash, Coins, Search, History, Repeat, ShoppingCart
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
+import { 
+  isSubscribed, subscribeCustomer, getActiveMembership, 
+  countActiveMembers, getAllActiveMemberships, getCustomerMonthlyUsage
+} from '../services/membershipService';
+import {
+  calculateRealMargin, calculateLTV, calculateMRR,
+  calculateSubscriberPrice, calculatePointsEarned
+} from '../services/calculationsService';
 
 interface StrategicGrowthProps {
   services: Service[];
   plans: MembershipPlan[];
   setPlans: React.Dispatch<React.SetStateAction<MembershipPlan[]>>;
+  currentUser?: User;
 }
 
-export const StrategicGrowth: React.FC<StrategicGrowthProps> = ({ services, plans, setPlans }) => {
+export const StrategicGrowth: React.FC<StrategicGrowthProps> = ({ services, plans, setPlans, currentUser }) => {
   const [activeTab, setActiveTab] = useState<'membership' | 'subscribers' | 'analysis'>('membership');
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+  const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
+  const [checkoutPlanId, setCheckoutPlanId] = useState<string | null>(null);
   const [subscriberSearch, setSubscriberSearch] = useState('');
+  const [activeMembers, setActiveMembers] = useState(0);
+  const [allMemberships, setAllMemberships] = useState<{ [key: string]: { planId: string; startDate: string } }>({});
   
   const [simData, setSimData] = useState({
     name: '',
@@ -37,8 +50,15 @@ export const StrategicGrowth: React.FC<StrategicGrowthProps> = ({ services, plan
   const stats = MOCK_STRATEGIC_STATS;
   const selectedPlan = plans.find(p => p.id === selectedPlanId);
   
+  // Atualizar índices de assinantes
+  useEffect(() => {
+    const members = countActiveMembers();
+    setActiveMembers(members);
+    setAllMemberships(getAllActiveMemberships());
+  }, []);
+  
   // Mock Subscribers Report
-  const activeSubscribers = MOCK_USERS.filter(u => u.membershipId);
+  const activeSubscribers = MOCK_USERS.filter(u => u.membershipId || isSubscribed(u.id));
 
   const handleCreatePlan = () => {
     const newPlan: MembershipPlan = {
@@ -57,6 +77,29 @@ export const StrategicGrowth: React.FC<StrategicGrowthProps> = ({ services, plan
     setIsPlanModalOpen(false);
   };
 
+  const handleSubscribeToPlan = (planId: string) => {
+    if (!currentUser) {
+      alert('Faça login para assinar um plano');
+      return;
+    }
+    
+    const result = subscribeCustomer(currentUser.id, planId);
+    if (result.success) {
+      // Atualizar contadores
+      const members = countActiveMembers();
+      setActiveMembers(members);
+      setAllMemberships(getAllActiveMemberships());
+      
+      // Fechar modal
+      setIsCheckoutModalOpen(false);
+      setCheckoutPlanId(null);
+      
+      alert(`✅ ${result.message}\n\nVocê agora está inscrito no plano e pode aproveitar os benefícios!`);
+    } else {
+      alert(`⚠️ ${result.message}`);
+    }
+  };
+
   const toggleServiceInPlan = (id: string) => {
     setSimData(prev => ({
       ...prev,
@@ -71,8 +114,11 @@ export const StrategicGrowth: React.FC<StrategicGrowthProps> = ({ services, plan
     const avgServicePrice = selectedServices.length ? selectedServices.reduce((sum, s) => sum + s.price, 0) / selectedServices.length : 0;
     const avgServiceCost = selectedServices.length ? selectedServices.reduce((sum, s) => sum + s.cost, 0) / selectedServices.length : 0;
     const monthlyServicesCost = avgServiceCost * simData.servicesPerMonth;
-    const margin = simData.price > 0 ? ((simData.price - monthlyServicesCost) / simData.price * 100) : 0;
-    const ltv = simData.price > 0 ? (simData.price - monthlyServicesCost) * 12 : 0;
+    
+    // Usar calculationsService para margem correta
+    const margin = calculateRealMargin(simData.price, monthlyServicesCost);
+    const ltv = calculateLTV(simData.price - monthlyServicesCost, 12); // 12 meses
+    
     return {
       avgServicePrice,
       avgServiceCost,
@@ -117,7 +163,7 @@ export const StrategicGrowth: React.FC<StrategicGrowthProps> = ({ services, plan
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <MetricCard title="Receita Recorrente (MRR)" value={`R$ ${stats.mrr.toFixed(2)}`} trend="+15%" icon={<RefreshCw size={20} />} color="bg-blue-50 text-blue-600" />
         <MetricCard title="Churn Rate" value={`${stats.churnRate}%`} trend="-2%" icon={<Activity size={20} />} color="bg-red-50 text-red-600" />
-        <MetricCard title="Membros Ativos" value={activeSubscribers.length.toString()} trend="+4" icon={<Users size={20} />} color="bg-emerald-50 text-emerald-600" />
+        <MetricCard title="Membros Ativos" value={activeMembers.toString()} trend={`+${activeMembers > 0 ? activeMembers : 0}`} icon={<Users size={20} />} color="bg-emerald-50 text-emerald-600" />
         <MetricCard title="LTV Médio" value={`R$ ${stats.clv.toFixed(0)}`} trend="+R$ 20" icon={<Target size={20} />} color="bg-amber-50 text-amber-600" />
       </div>
 
@@ -137,7 +183,15 @@ export const StrategicGrowth: React.FC<StrategicGrowthProps> = ({ services, plan
                         </div>
                     </div>
                     <div className="pt-6 border-t border-slate-50 flex gap-2">
-                        <button onClick={() => setSelectedPlanId(plan.id)} className="flex-1 py-3 bg-brand-dark text-white rounded-xl text-xs font-bold hover:bg-black transition-all">Relatório Detalhado</button>
+                        <button 
+                          onClick={() => {
+                            setCheckoutPlanId(plan.id);
+                            setIsCheckoutModalOpen(true);
+                          }}
+                          className="flex-1 py-3 bg-brand-dark text-white rounded-xl text-xs font-bold hover:bg-black transition-all flex items-center justify-center gap-2"
+                        >
+                          <ShoppingCart size={16} /> Assinar Plano
+                        </button>
                         <button className="p-3 bg-slate-100 text-slate-400 rounded-xl hover:text-brand-dark transition-all"><BarChart3 size={18}/></button>
                     </div>
                 </div>
@@ -208,7 +262,85 @@ export const StrategicGrowth: React.FC<StrategicGrowthProps> = ({ services, plan
           </div>
       )}
 
-      {/* MODAL CRIADOR DE CLUBES REFINADO */}
+      {/* MODAL DE CHECKOUT - ASSINAR PLANO */}
+      {isCheckoutModalOpen && checkoutPlanId && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 transition-all duration-300">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 animate-fade-in relative">
+            
+            <button 
+              onClick={() => {
+                setIsCheckoutModalOpen(false);
+                setCheckoutPlanId(null);
+              }}
+              className="absolute top-6 right-6 p-3 bg-slate-100 text-slate-400 hover:text-brand-dark hover:bg-slate-200 rounded-full transition-all z-20"
+            >
+              <X size={20} strokeWidth={3} />
+            </button>
+
+            <div className="p-8 bg-gradient-to-r from-brand-dark to-black text-white text-center">
+              <Crown size={40} className="mx-auto mb-4 text-amber-400 fill-amber-400" />
+              <h3 className="text-2xl font-black tracking-tighter mb-2">Ativar Assinatura</h3>
+              <p className="text-slate-300 text-sm">Desfrute de benefícios exclusivos do plano</p>
+            </div>
+
+            <div className="p-8 space-y-6">
+              {plans.find(p => p.id === checkoutPlanId) && (
+                <>
+                  <div className="bg-slate-50 rounded-2xl p-6 text-center border border-slate-100">
+                    <h4 className="text-2xl font-black text-brand-dark mb-2">{plans.find(p => p.id === checkoutPlanId)?.name}</h4>
+                    <div className="text-4xl font-black text-brand-dark mb-2">
+                      R$ {plans.find(p => p.id === checkoutPlanId)?.price.toFixed(2)}
+                    </div>
+                    <p className="text-sm text-slate-500">por mês</p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <h5 className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Benefícios Inclusos:</h5>
+                    <div className="space-y-2">
+                      <div className="flex items-start gap-3">
+                        <CheckCircle size={18} className="text-emerald-500 mt-0.5 flex-shrink-0" fill="currentColor" />
+                        <span className="text-sm text-slate-700">{plans.find(p => p.id === checkoutPlanId)?.servicesPerMonth}x Serviços por mês</span>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <CheckCircle size={18} className="text-emerald-500 mt-0.5 flex-shrink-0" fill="currentColor" />
+                        <span className="text-sm text-slate-700">15% de desconto em cada serviço</span>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <CheckCircle size={18} className="text-emerald-500 mt-0.5 flex-shrink-0" fill="currentColor" />
+                        <span className="text-sm text-slate-700">Prioridade no agendamento</span>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <CheckCircle size={18} className="text-emerald-500 mt-0.5 flex-shrink-0" fill="currentColor" />
+                        <span className="text-sm text-slate-700">Suporte prioritário</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex gap-3">
+                    <Info size={18} className="text-blue-600 flex-shrink-0" />
+                    <p className="text-xs text-blue-700">
+                      <span className="font-bold">Simulação:</span> Este é um checkout mockado para demonstração. O plano será ativado imediatamente.
+                    </p>
+                  </div>
+
+                  <button 
+                    onClick={() => handleSubscribeToPlan(checkoutPlanId)}
+                    className="w-full py-4 bg-brand-dark text-white font-black text-lg rounded-2xl shadow-xl hover:bg-black transition-all flex items-center justify-center gap-2"
+                  >
+                    <ShoppingCart size={20} /> Confirmar Assinatura
+                  </button>
+
+                  <p className="text-[10px] text-slate-400 text-center">
+                    Você pode cancelar ou alterar seu plano a qualquer momento.
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+
       {isPlanModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 transition-all duration-300">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 max-h-[90vh] flex flex-col animate-fade-in relative">

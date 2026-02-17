@@ -362,7 +362,7 @@ export default function Page() {
         return <MarketingTools automations={automations} setAutomations={setAutomations} />;
 
       case 'strategic':
-        return <StrategicGrowth services={services} plans={membershipPlans} setPlans={setMembershipPlans} />;
+        return <StrategicGrowth services={services} plans={membershipPlans} setPlans={setMembershipPlans} currentUser={currentUser || undefined} />;
 
       case 'settings':
         return <Settings currentUser={currentUser!} settings={shopSettings} onUpdateSettings={setShopSettings} onUpdateUser={setCurrentUser} />;
