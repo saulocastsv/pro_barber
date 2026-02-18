@@ -177,4 +177,7 @@ export const FormInput: React.FC<{
   </div>
 );
 
+export * from './UIKit/Loading';
+export * from './UIKit/Toast';
+export * from './UIKit/Feedback';
 export default { Card, Heading, StatCard, Button, Alert, Section, FormInput };

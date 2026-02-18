@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Appointment, User, Service } from '../types';
 import { AvatarComponent } from './AvatarComponent';
+import { UIButton, Section, EmptyState } from './UIKit';
 import { Clock, Plus, X, Calendar as CalendarIcon, User as UserIcon, Scissors, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 
 interface CalendarViewProps {
@@ -78,39 +79,24 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ appointments, barber
       )}
 
       {/* Header da Agenda Refinado */}
-      <div className="px-6 py-5 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center gap-4 bg-white sticky top-0 z-20">
+      <Section title="Agenda" className="border-b border-slate-50 bg-white sticky top-0 z-20 px-6 py-5">
         <div className="flex items-center gap-4">
-            <div className="flex items-center bg-slate-50 p-1 rounded-xl border border-slate-100">
-                <button onClick={() => changeDate(-1)} className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-slate-400 hover:text-brand-dark"><ChevronLeft size={18}/></button>
-                <div className="px-4 flex flex-col items-center min-w-[140px]">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none mb-1">
-                        {selectedDate.toLocaleDateString('pt-BR', { weekday: 'short' })}
-                    </span>
-                    <span className="text-sm font-black text-brand-dark">
-                        {selectedDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
-                    </span>
-                </div>
-                <button onClick={() => changeDate(1)} className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-slate-400 hover:text-brand-dark"><ChevronRight size={18}/></button>
-            </div>
-            <button 
-              onClick={() => setSelectedDate(new Date())}
-              className="text-[10px] font-black text-slate-400 hover:text-brand-dark uppercase tracking-widest px-3 py-2 bg-slate-50 rounded-lg border border-slate-100 transition-all active:scale-95"
-            >
-              Hoje
-            </button>
-        </div>
-        
-        {/* Botão de Novo Agendamento - Posição de Destaque */}
-        <button 
-          onClick={() => openNewAppointment()}
-          className="w-full md:w-auto bg-brand-dark text-white px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-[0.15em] hover:bg-black transition-all shadow-xl shadow-brand-dark/10 flex items-center justify-center gap-3 active:scale-95 group"
-        >
-          <div className="bg-white/10 p-1 rounded-lg group-hover:scale-110 transition-transform">
-            <Plus size={16} strokeWidth={3} />
+          <UIButton onClick={() => changeDate(-1)} variant="ghost" size="sm" className="p-2"><ChevronLeft size={18}/></UIButton>
+          <div className="px-4 flex flex-col items-center min-w-[140px]">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none mb-1">
+              {selectedDate.toLocaleDateString('pt-BR', { weekday: 'short' })}
+            </span>
+            <span className="text-sm font-black text-brand-dark">
+              {selectedDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+            </span>
           </div>
-          Novo Agendamento
-        </button>
-      </div>
+          <UIButton onClick={() => changeDate(1)} variant="ghost" size="sm" className="p-2"><ChevronRight size={18}/></UIButton>
+          <UIButton onClick={() => setSelectedDate(new Date())} variant="ghost" size="sm" className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-3 py-2">Hoje</UIButton>
+        </div>
+        <UIButton onClick={() => openNewAppointment()} variant="primary" size="md" className="w-full md:w-auto flex items-center gap-3 mt-4">
+          <Plus size={16} strokeWidth={3} /> Novo Agendamento
+        </UIButton>
+      </Section>
       
       <div className="flex-1 overflow-auto bg-slate-50/30 relative custom-scrollbar">
         <div className="min-w-[800px]">

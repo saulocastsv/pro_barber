@@ -1,4 +1,4 @@
-# 📋 Resumo de Implementações - Pro Barber Demo
+# 📋 Resumo de Implementações - Demo
 
 ## ✅ Funcionalidades Completadas
 

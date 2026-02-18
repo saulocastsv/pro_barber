@@ -1,4 +1,4 @@
-# 📋 AUDITORIAS E DOCUMENTAÇÃO - PRO BARBER
+# 📋 AUDITORIAS E DOCUMENTAÇÃO
 
 Este diretório contém documentação completa de auditoria técnica, fluxos incompletos, análise financeira e plano de implementação.
 

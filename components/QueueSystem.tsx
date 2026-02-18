@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { QueueItem, Service } from '../types';
 // Fixed: Added List to the imported icons from lucide-react
 import { Clock, User, Scissors, Play, CheckCircle, Smartphone, AlertCircle, Users, List } from 'lucide-react';
+import { UIButton, Section, EmptyState } from './UIKit';
 
 interface QueueSystemProps {
   initialQueue: QueueItem[];
@@ -44,20 +45,20 @@ export const QueueSystem: React.FC<QueueSystemProps> = ({ initialQueue, services
   return (
     <div className="flex flex-col gap-6 animate-fade-in pb-12">
       {/* Mobile Stats Banner */}
-      <div className="md:hidden bg-brand-dark text-white p-5 rounded-[1.5rem] shadow-xl flex justify-between items-center relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl -mr-16 -mt-16"></div>
-          <div className="relative z-10">
-              <p className="text-[10px] font-black uppercase tracking-widest text-brand-light/60 mb-1">Pessoas na Fila</p>
-              <h3 className="text-3xl font-black tracking-tighter">{queue.length} <span className="text-sm font-bold opacity-40 ml-1">esperando</span></h3>
-          </div>
-          <div className="relative z-10 text-right">
-              <p className="text-[10px] font-black uppercase tracking-widest text-brand-light/60 mb-1">Espera Média</p>
-              <div className="flex items-center gap-1.5 justify-end">
-                <Clock size={14} className="text-amber-400" />
-                <span className="text-xl font-black">{queue.length * 20} min</span>
-              </div>
-          </div>
-      </div>
+            <Section title="Fila Walk-in" className="md:hidden bg-brand-dark text-white p-5 rounded-[1.5rem] shadow-xl flex justify-between items-center relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl -mr-16 -mt-16"></div>
+                <div className="relative z-10">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-brand-light/60 mb-1">Pessoas na Fila</p>
+                    <h3 className="text-3xl font-black tracking-tighter">{queue.length} <span className="text-sm font-bold opacity-40 ml-1">esperando</span></h3>
+                </div>
+                <div className="relative z-10 text-right">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-brand-light/60 mb-1">Espera Média</p>
+                    <div className="flex items-center gap-1.5 justify-end">
+                        <Clock size={14} className="text-amber-400" />
+                        <span className="text-xl font-black">{queue.length * 20} min</span>
+                    </div>
+                </div>
+            </Section>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Input Section - Left column on Desktop, stacks on Mobile */}

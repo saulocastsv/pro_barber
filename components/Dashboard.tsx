@@ -3,7 +3,7 @@ import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { DollarSign, Users, Calendar, TrendingUp, Trophy, ArrowUpRight, ArrowRight } from 'lucide-react';
 import { BarbershopStats } from '../types';
-import { Heading, Section, StatCard as UIStatCard } from './UIKit';
+import { Heading, Section, StatCard as UIStatCard, UIButton } from './UIKit';
 
 interface DashboardProps {
   stats: BarbershopStats;
@@ -27,9 +27,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, onNavigate }) => {
         title="Painel Executivo"
         subtitle="Análise de performance em tempo real"
         action={
-          <button onClick={() => onNavigate('financials')} className="text-xs font-bold text-blue-600 flex items-center gap-1 hover:text-blue-700 transition-colors">
+          <UIButton onClick={() => onNavigate('financials')} variant="ghost" size="sm" className="text-xs font-bold text-blue-600 flex items-center gap-1 hover:text-blue-700 transition-colors">
             Relatórios <ArrowRight size={14} />
-          </button>
+          </UIButton>
         }
       >
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -37,26 +37,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, onNavigate }) => {
             label="Receita Mensal" 
             value={`R$ ${(stats.monthlyRevenue || 0).toLocaleString('pt-BR')}`}
             trend="+12%" 
-            icon={<DollarSign size={20} className="text-blue-600" />}
+            icon={<DollarSign size={20} className="text-blue-600" />} 
             onClick={() => onNavigate('financials')}
           />
           <UIStatCard 
             label="Atendimentos" 
             value={stats.totalAppointments || 0}
             trend="+4%" 
-            icon={<Calendar size={20} className="text-emerald-600" />}
+            icon={<Calendar size={20} className="text-emerald-600" />} 
             onClick={() => onNavigate('calendar')}
           />
           <UIStatCard 
             label="Novos Clientes" 
             value={`+${stats.newCustomers || 0}`}
-            icon={<Users size={20} className="text-amber-600" />}
+            icon={<Users size={20} className="text-amber-600" />} 
             onClick={() => onNavigate('crm')}
           />
           <UIStatCard 
             label="Ticket Médio" 
             value={`R$ ${stats.avgTicket || 0}`}
-            icon={<TrendingUp size={20} className="text-purple-600" />}
+            icon={<TrendingUp size={20} className="text-purple-600" />} 
           />
         </div>
       </Section>
@@ -105,9 +105,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, onNavigate }) => {
               </div>
             ))}
           </div>
-          <button onClick={() => onNavigate('team')} className="mt-6 w-full py-3 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold rounded-xl text-xs uppercase tracking-widest transition-all">
+          <UIButton onClick={() => onNavigate('team')} variant="ghost" size="sm" className="mt-6 w-full text-slate-600 font-bold rounded-xl text-xs uppercase tracking-widest transition-all">
             Ver Equipe Completa
-          </button>
+          </UIButton>
         </div>
       </div>
     </div>

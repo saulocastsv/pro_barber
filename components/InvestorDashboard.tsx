@@ -49,13 +49,17 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
     ? membershipPlans.reduce((sum, plan) => sum + (plan.price * 12), 0) / membershipPlans.length 
     : 0;
 
-  // Appointments this month
-  const thisMonth = new Date();
-  const appointmentsThisMonth = appointments.filter(apt => {
-    const aptDate = new Date(apt.startTime);
-    return aptDate.getMonth() === thisMonth.getMonth() && 
-           aptDate.getFullYear() === thisMonth.getFullYear();
-  }).length;
+  // Appointments this month (client only, para evitar hydration mismatch)
+  const [appointmentsThisMonth, setAppointmentsThisMonth] = useState(0);
+  useEffect(() => {
+    const now = new Date();
+    const count = appointments.filter(apt => {
+      const aptDate = new Date(apt.startTime);
+      return aptDate.getMonth() === now.getMonth() && 
+             aptDate.getFullYear() === now.getFullYear();
+    }).length;
+    setAppointmentsThisMonth(count);
+  }, [appointments]);
 
   // Revenue from appointments (estimate)
   const appointmentRevenue = appointments.reduce((sum, apt) => {
@@ -321,7 +325,7 @@ export const InvestorDashboard: React.FC<InvestorDashboardProps> = ({
       <div className="bg-gradient-to-r from-brand-dark to-black rounded-[2.5rem] p-8 md:p-12 text-white text-center">
         <h3 className="text-2xl font-black mb-3 tracking-tighter">Pronto para Escalar?</h3>
         <p className="text-slate-300 mb-6 max-w-2xl mx-auto">
-          Com a plataforma Pro Barber, você tem um SaaS totalmente funcional pronto para crescimento exponencial. 
+          Com a plataforma, você tem um SaaS totalmente funcional pronto para crescimento exponencial. 
           Todas as métricas acima são conservadoras e baseadas em dados reais de mercado.
         </p>
         <div className="flex flex-col md:flex-row gap-4 justify-center">

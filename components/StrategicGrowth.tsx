@@ -30,6 +30,8 @@ interface StrategicGrowthProps {
 
 export const StrategicGrowth: React.FC<StrategicGrowthProps> = ({ services, plans, setPlans, currentUser }) => {
   const [activeTab, setActiveTab] = useState<'membership' | 'subscribers' | 'analysis'>('membership');
+    // UIKit
+    import { Section, StatCard as UIKitStatCard, Button, Card, FormInput } from './UIKit';
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
@@ -148,211 +150,216 @@ export const StrategicGrowth: React.FC<StrategicGrowthProps> = ({ services, plan
 
   return (
     <div className="space-y-8 animate-fade-in pb-10">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-3xl font-bold text-brand-dark tracking-tight">Estratégia & Crescimento</h2>
-          <p className="text-brand-midGray mt-1 font-medium">Gestão inteligente de planos e retenção.</p>
+      <Section
+        title="Estratégia & Crescimento"
+        subtitle="Gestão inteligente de planos e retenção."
+        action={
+          <div className="flex bg-white p-1 rounded-2xl border border-slate-100 shadow-sm">
+            <Button variant={activeTab === 'membership' ? 'primary' : 'ghost'} size="sm" onClick={() => setActiveTab('membership')}>Clubes</Button>
+            <Button variant={activeTab === 'subscribers' ? 'primary' : 'ghost'} size="sm" onClick={() => setActiveTab('subscribers')}>Relatório Assinantes</Button>
+            <Button variant={activeTab === 'analysis' ? 'primary' : 'ghost'} size="sm" onClick={() => setActiveTab('analysis')}>Análise</Button>
+          </div>
+        }
+      >
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <UIKitStatCard label="Receita Recorrente (MRR)" value={`R$ ${stats.mrr.toFixed(2)}`} trend="+15%" icon={<RefreshCw size={20} />} />
+          <UIKitStatCard label="Churn Rate" value={`${stats.churnRate}%`} trend="-2%" icon={<Activity size={20} />} />
+          <UIKitStatCard label="Membros Ativos" value={activeMembers.toString()} trend={`+${activeMembers > 0 ? activeMembers : 0}`} icon={<Users size={20} />} />
+          <UIKitStatCard label="LTV Médio" value={`R$ ${stats.clv.toFixed(0)}`} trend="+R$ 20" icon={<Target size={20} />} />
         </div>
-        <div className="flex bg-white p-1 rounded-2xl border border-slate-100 shadow-sm">
-          <button onClick={() => setActiveTab('membership')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'membership' ? 'bg-brand-dark text-white' : 'text-slate-400'}`}>Clubes</button>
-          <button onClick={() => setActiveTab('subscribers')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'subscribers' ? 'bg-brand-dark text-white' : 'text-slate-400'}`}>Relatório Assinantes</button>
-          <button onClick={() => setActiveTab('analysis')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'analysis' ? 'bg-brand-dark text-white' : 'text-slate-400'}`}>Análise</button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <MetricCard title="Receita Recorrente (MRR)" value={`R$ ${stats.mrr.toFixed(2)}`} trend="+15%" icon={<RefreshCw size={20} />} color="bg-blue-50 text-blue-600" />
-        <MetricCard title="Churn Rate" value={`${stats.churnRate}%`} trend="-2%" icon={<Activity size={20} />} color="bg-red-50 text-red-600" />
-        <MetricCard title="Membros Ativos" value={activeMembers.toString()} trend={`+${activeMembers > 0 ? activeMembers : 0}`} icon={<Users size={20} />} color="bg-emerald-50 text-emerald-600" />
-        <MetricCard title="LTV Médio" value={`R$ ${stats.clv.toFixed(0)}`} trend="+R$ 20" icon={<Target size={20} />} color="bg-amber-50 text-amber-600" />
-      </div>
+      </Section>
 
       {activeTab === 'membership' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {plans.map(plan => (
-                <div key={plan.id} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative overflow-hidden group">
+        <Section title="Clubes de Assinatura" subtitle="Gerencie planos e clubes disponíveis">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {plans.length === 0 ? (
+              <Card variant="bordered" className="flex flex-col items-center justify-center h-48">
+                <div className="text-slate-400"><Crown size={32} /></div>
+                <p className="text-sm font-bold mt-2">Nenhum clube disponível</p>
+                <Button variant="primary" size="md" onClick={() => setIsPlanModalOpen(true)} className="mt-4">Criar Novo Clube Barvo</Button>
+              </Card>
+            ) : (
+              <>
+                {plans.map(plan => (
+                  <Card key={plan.id} variant="elevated" className="relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-brand-light/5 rounded-full blur-3xl -mr-16 -mt-16"></div>
                     <div className="relative z-10 flex justify-between items-start">
-                        <div>
-                            <h3 className="text-2xl font-black text-brand-dark tracking-tighter">{plan.name}</h3>
-                            <p className="text-sm font-bold text-slate-400 mb-4 uppercase tracking-widest">{plan.servicesPerMonth} serviços p/ mês</p>
-                            <div className="text-3xl font-black text-brand-dark mb-6">R$ {plan.price.toFixed(2)} <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">/ mensal</span></div>
-                        </div>
-                        <div className="bg-emerald-50 text-emerald-600 px-4 py-2 rounded-2xl font-bold text-xs uppercase border border-emerald-100">
-                            {plan.activeMembers} Ativos
-                        </div>
+                      <div>
+                        <h3 className="text-2xl font-black text-brand-dark tracking-tighter">{plan.name}</h3>
+                        <p className="text-sm font-bold text-slate-400 mb-4 uppercase tracking-widest">{plan.servicesPerMonth} serviços p/ mês</p>
+                        <div className="text-3xl font-black text-brand-dark mb-6">R$ {plan.price.toFixed(2)} <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">/ mensal</span></div>
+                      </div>
+                      <div className="bg-emerald-50 text-emerald-600 px-4 py-2 rounded-2xl font-bold text-xs uppercase border border-emerald-100">
+                        {plan.activeMembers} Ativos
+                      </div>
                     </div>
                     <div className="pt-6 border-t border-slate-50 flex gap-2">
-                        <button 
-                          onClick={() => {
-                            setCheckoutPlanId(plan.id);
-                            setIsCheckoutModalOpen(true);
-                          }}
-                          className="flex-1 py-3 bg-brand-dark text-white rounded-xl text-xs font-bold hover:bg-black transition-all flex items-center justify-center gap-2"
-                        >
-                          <ShoppingCart size={16} /> Assinar Plano
-                        </button>
-                        <button className="p-3 bg-slate-100 text-slate-400 rounded-xl hover:text-brand-dark transition-all"><BarChart3 size={18}/></button>
+                      <Button variant="primary" size="sm" className="flex-1 flex items-center gap-2" onClick={() => { setCheckoutPlanId(plan.id); setIsCheckoutModalOpen(true); }}>
+                        <ShoppingCart size={16} /> Assinar Plano
+                      </Button>
+                      <Button variant="ghost" size="sm" className="p-3" onClick={() => setSelectedPlanId(plan.id)}><BarChart3 size={18}/></Button>
                     </div>
-                </div>
-            ))}
-            <button onClick={() => setIsPlanModalOpen(true)} className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2.5rem] p-8 flex flex-col items-center justify-center gap-3 text-slate-400 hover:border-brand-dark hover:text-brand-dark transition-all group">
-                <Plus size={40} className="group-hover:scale-110 transition-transform" />
-                <span className="font-bold">Criar Novo Clube Barvo</span>
-            </button>
-        </div>
+                  </Card>
+                ))}
+                <Button variant="outline" size="lg" onClick={() => setIsPlanModalOpen(true)} className="w-full mt-4 flex flex-col items-center justify-center gap-3">
+                  <Plus size={32} />
+                  <span className="font-bold">Criar Novo Clube Barvo</span>
+                </Button>
+              </>
+            )}
+          </div>
+        </Section>
       )}
 
       {activeTab === 'subscribers' && (
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden animate-fade-in">
-              <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row gap-4 justify-between items-center">
-                  <h3 className="text-xl font-bold text-brand-dark flex items-center gap-2">
-                      <Users size={20} className="text-blue-500" /> Relatório de Assinantes
-                  </h3>
-                  <div className="relative w-full md:w-64">
-                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input type="text" placeholder="Filtrar por nome..." className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm" value={subscriberSearch} onChange={e => setSubscriberSearch(e.target.value)} />
-                  </div>
+        <Section title="Relatório de Assinantes" subtitle="Veja todos os assinantes ativos">
+          <Card variant="default" className="overflow-x-auto">
+            <div className="flex flex-col md:flex-row gap-4 justify-between items-center mb-4">
+              <div className="flex items-center gap-2">
+                <Users size={20} className="text-blue-500" />
+                <span className="text-xl font-bold text-brand-dark">Relatório de Assinantes</span>
               </div>
-              <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                      <thead className="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-widest">
-                          <tr>
-                              <th className="px-6 py-4">Assinante</th>
-                              <th className="px-6 py-4">Plano</th>
-                              <th className="px-6 py-4">Ativo desde</th>
-                              <th className="px-6 py-4">Status</th>
-                              <th className="px-6 py-4 text-right">Histórico / Migração</th>
-                          </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                          {activeSubscribers.filter(s => s.name.toLowerCase().includes(subscriberSearch.toLowerCase())).map(sub => {
-                              const plan = plans.find(p => p.id === sub.membershipId);
-                              return (
-                                  <tr key={sub.id} className="hover:bg-slate-50 transition-colors">
-                                      <td className="px-6 py-4">
-                                          <div className="flex items-center gap-3">
-                                              <AvatarComponent url={sub.avatar} name={sub.name} size="sm" className="!w-10 !h-10" />
-                                              <div>
-                                                  <p className="font-bold text-brand-dark text-sm">{sub.name}</p>
-                                                  <p className="text-[10px] text-slate-400">{sub.email}</p>
-                                              </div>
-                                          </div>
-                                      </td>
-                                      <td className="px-6 py-4">
-                                          <span className="font-bold text-slate-700 text-sm">{plan?.name}</span>
-                                      </td>
-                                      <td className="px-6 py-4 text-sm text-slate-500">
-                                          {sub.membershipStartDate || '12/10/2023'}
-                                      </td>
-                                      <td className="px-6 py-4">
-                                          <span className="bg-emerald-100 text-emerald-700 text-[10px] font-black px-2 py-1 rounded uppercase">Ativo</span>
-                                      </td>
-                                      <td className="px-6 py-4 text-right">
-                                          <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors group" title="Ver Migrações">
-                                              <History size={18} />
-                                          </button>
-                                      </td>
-                                  </tr>
-                              );
-                          })}
-                      </tbody>
-                  </table>
-              </div>
-          </div>
+              <FormInput
+                label="Filtrar por nome"
+                placeholder="Digite o nome..."
+                value={subscriberSearch}
+                onChange={e => setSubscriberSearch(e.target.value)}
+                icon={<Search size={16} />}
+              />
+            </div>
+            <table className="w-full text-left">
+              <thead className="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-widest">
+                <tr>
+                  <th className="px-6 py-4">Assinante</th>
+                  <th className="px-6 py-4">Plano</th>
+                  <th className="px-6 py-4">Ativo desde</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4 text-right">Histórico / Migração</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {activeSubscribers.filter(s => s.name.toLowerCase().includes(subscriberSearch.toLowerCase())).map(sub => {
+                  const plan = plans.find(p => p.id === sub.membershipId);
+                  return (
+                    <tr key={sub.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <AvatarComponent url={sub.avatar} name={sub.name} size="sm" className="!w-10 !h-10" />
+                          <div>
+                            <p className="font-bold text-brand-dark text-sm">{sub.name}</p>
+                            <p className="text-[10px] text-slate-400">{sub.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="font-bold text-slate-700 text-sm">{plan?.name}</span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-500">
+                        {sub.membershipStartDate || '12/10/2023'}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="bg-emerald-100 text-emerald-700 text-[10px] font-black px-2 py-1 rounded uppercase">Ativo</span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <Button variant="ghost" size="sm" className="p-2" title="Ver Migrações">
+                          <History size={18} />
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </Card>
+        </Section>
       )}
 
       {/* MODAL DE CHECKOUT - ASSINAR PLANO */}
       {isCheckoutModalOpen && checkoutPlanId && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 transition-all duration-300">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 animate-fade-in relative">
-            
-            <button 
-              onClick={() => {
-                setIsCheckoutModalOpen(false);
-                setCheckoutPlanId(null);
-              }}
-              className="absolute top-6 right-6 p-3 bg-slate-100 text-slate-400 hover:text-brand-dark hover:bg-slate-200 rounded-full transition-all z-20"
-            >
-              <X size={20} strokeWidth={3} />
-            </button>
-
-            <div className="p-8 bg-gradient-to-r from-brand-dark to-black text-white text-center">
-              <Crown size={40} className="mx-auto mb-4 text-amber-400 fill-amber-400" />
-              <h3 className="text-2xl font-black tracking-tighter mb-2">Ativar Assinatura</h3>
-              <p className="text-slate-300 text-sm">Desfrute de benefícios exclusivos do plano</p>
-            </div>
-
-            <div className="p-8 space-y-6">
-              {plans.find(p => p.id === checkoutPlanId) && (
-                <>
-                  <div className="bg-slate-50 rounded-2xl p-6 text-center border border-slate-100">
-                    <h4 className="text-2xl font-black text-brand-dark mb-2">{plans.find(p => p.id === checkoutPlanId)?.name}</h4>
-                    <div className="text-4xl font-black text-brand-dark mb-2">
-                      R$ {plans.find(p => p.id === checkoutPlanId)?.price.toFixed(2)}
-                    </div>
-                    <p className="text-sm text-slate-500">por mês</p>
-                  </div>
-
-                  <div className="space-y-3">
-                    <h5 className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Benefícios Inclusos:</h5>
-                    <div className="space-y-2">
-                      <div className="flex items-start gap-3">
-                        <CheckCircle size={18} className="text-emerald-500 mt-0.5 flex-shrink-0" fill="currentColor" />
-                        <span className="text-sm text-slate-700">{plans.find(p => p.id === checkoutPlanId)?.servicesPerMonth}x Serviços por mês</span>
-                      </div>
-                      <div className="flex items-start gap-3">
-                        <CheckCircle size={18} className="text-emerald-500 mt-0.5 flex-shrink-0" fill="currentColor" />
-                        <span className="text-sm text-slate-700">15% de desconto em cada serviço</span>
-                      </div>
-                      <div className="flex items-start gap-3">
-                        <CheckCircle size={18} className="text-emerald-500 mt-0.5 flex-shrink-0" fill="currentColor" />
-                        <span className="text-sm text-slate-700">Prioridade no agendamento</span>
-                      </div>
-                      <div className="flex items-start gap-3">
-                        <CheckCircle size={18} className="text-emerald-500 mt-0.5 flex-shrink-0" fill="currentColor" />
-                        <span className="text-sm text-slate-700">Suporte prioritário</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex gap-3">
-                    <Info size={18} className="text-blue-600 flex-shrink-0" />
-                    <p className="text-xs text-blue-700">
-                      <span className="font-bold">Simulação:</span> Este é um checkout mockado para demonstração. O plano será ativado imediatamente.
-                    </p>
-                  </div>
-
-                  <button 
-                    onClick={() => handleSubscribeToPlan(checkoutPlanId)}
-                    className="w-full py-4 bg-brand-dark text-white font-black text-lg rounded-2xl shadow-xl hover:bg-black transition-all flex items-center justify-center gap-2"
-                  >
-                    <ShoppingCart size={20} /> Confirmar Assinatura
-                  </button>
-
-                  <p className="text-[10px] text-slate-400 text-center">
-                    Você pode cancelar ou alterar seu plano a qualquer momento.
-                  </p>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-
-      {isPlanModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 transition-all duration-300">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 max-h-[90vh] flex flex-col animate-fade-in relative">
-            
-            <button 
-              onClick={() => setIsPlanModalOpen(false)} 
-              className="absolute top-6 right-6 p-3 bg-slate-100 text-slate-400 hover:text-brand-dark hover:bg-slate-200 rounded-full transition-all z-20 shadow-sm"
-            >
-              <X size={20} strokeWidth={3} />
-            </button>
-
+          <Card variant="elevated" className="w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden relative animate-fade-in">
+            <Button variant="ghost" size="sm" className="absolute top-6 right-6 z-20" onClick={() => setIsPlanModalOpen(false)}><X size={20} strokeWidth={3} /></Button>
             <div className="p-8 md:p-10 border-b border-slate-50 bg-slate-50/50">
+              <div className="flex items-center gap-2 mb-2">
+                <Crown size={24} className="text-amber-500 fill-amber-500" />
+                <span className="text-2xl font-black text-brand-dark tracking-tighter">Criador de Clubes Barvo</span>
+              </div>
+              <span className="text-slate-500 text-sm font-medium">Configure a recorrência e benefícios exclusivos para seus clientes.</span>
+            </div>
+            <div className="p-8 md:p-10 overflow-y-auto space-y-8 custom-scrollbar">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-6">
+                  <FormInput
+                    label="Nome do Plano"
+                    placeholder="Ex: Premium Mensal"
+                    value={simData.name}
+                    onChange={e => setSimData({ ...simData, name: e.target.value })}
+                    icon={<Tag size={20} className="text-slate-400" />}
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormInput
+                      label="Mensalidade (R$)"
+                      type="number"
+                      value={simData.price.toString()}
+                      onChange={e => setSimData({ ...simData, price: Number(e.target.value) })}
+                      icon={<Coins size={18} className="text-slate-400" />}
+                    />
+                    <FormInput
+                      label="Frequência / Mês"
+                      type="number"
+                      value={simData.servicesPerMonth.toString()}
+                      onChange={e => setSimData({ ...simData, servicesPerMonth: Number(e.target.value) })}
+                      icon={<Hash size={18} className="text-slate-400" />}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Scissors size={14} className="text-slate-400" />
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Incluso no Plano</span>
+                  </div>
+                  <Card variant="bordered" className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                    {services.map(s => (
+                      <Button
+                        key={s.id}
+                        variant={simData.includedServiceIds.includes(s.id) ? 'primary' : 'outline'}
+                        size="sm"
+                        className="w-full flex justify-between items-center p-3.5 mb-1"
+                        onClick={() => toggleServiceInPlan(s.id)}
+                      >
+                        <div className="text-left">
+                          <span className="text-xs font-bold mb-1 block">{s.name}</span>
+                          <span className={`text-[10px] block ${simData.includedServiceIds.includes(s.id) ? 'text-brand-light/60' : 'text-slate-400'}`}>Valor avulso: R$ {s.price}</span>
+                        </div>
+                        {simData.includedServiceIds.includes(s.id) && <CheckCircle size={18} className="text-brand-light" fill="currentColor" />}
+                      </Button>
+                    ))}
+                  </Card>
+                </div>
+              </div>
+              <Card variant="default" className="bg-slate-900 text-white relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-brand-light/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
+                <div className="flex items-center gap-2 mb-6 border-b border-white/10 pb-4">
+                  <TrendingUp size={18} className="text-brand-light" />
+                  <span className="font-black text-brand-light uppercase tracking-widest text-xs">Análise de Lucratividade</span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
+                  <UIKitStatCard label="Margem" value={`${metrics.margin.toFixed(1)}%`} icon={null} />
+                  <UIKitStatCard label="Custo Mensal" value={`R$ ${metrics.monthlyServicesCost.toFixed(2)}`} icon={null} />
+                  <UIKitStatCard label="LTV Anual" value={`R$ ${metrics.ltv.toFixed(0)}`} icon={null} />
+                </div>
+              </Card>
+              <Button
+                variant="primary"
+                size="lg"
+                className="w-full"
+                onClick={handleCreatePlan}
+                disabled={simData.includedServiceIds.length === 0 || !simData.name}
+              >
+                Ativar Clube de Assinatura
+              </Button>
+            </div>
+          </Card>
               <div className="flex items-center gap-2 mb-2">
                 <Crown size={24} className="text-amber-500 fill-amber-500" />
                 <h3 className="text-2xl font-black text-brand-dark tracking-tighter">Criador de Clubes Barvo</h3>

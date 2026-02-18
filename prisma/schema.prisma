@@ -1,0 +1,156 @@
+// PRISMA SCHEMA - MÓDULO FINANCEIRO MULTI-TENANT
+// Banco inicial: SQLite ou PostgreSQL local
+// Pronto para Supabase (apenas trocar connection string)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // ou "sqlite" para local
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id           String   @id @default(uuid())
+  name         String
+  slug         String   @unique
+  createdAt    DateTime @default(now())
+  customers    Customer[]
+  professionals Professional[]
+  services     Service[]
+  products     Product[]
+  appointments Appointment[]
+  transactions FinancialTransaction[]
+  subscriptions Subscription[]
+  costs        Cost[]
+  insights     Insight[]
+  forecasts    Forecast[]
+}
+
+model Customer {
+  id         String   @id @default(uuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  name       String
+  email      String?
+  phone      String?
+  createdAt  DateTime @default(now())
+  appointments Appointment[]
+  subscriptions Subscription[]
+}
+
+model Professional {
+  id         String   @id @default(uuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  name       String
+  email      String?
+  createdAt  DateTime @default(now())
+  appointments Appointment[]
+}
+
+model Service {
+  id         String   @id @default(uuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  name       String
+  price      Float
+  duration   Int      // minutos
+  active     Boolean  @default(true)
+  appointments Appointment[]
+}
+
+model Product {
+  id         String   @id @default(uuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  name       String
+  price      Float
+  cost       Float
+  stock      Int
+  active     Boolean  @default(true)
+}
+
+model Appointment {
+  id             String   @id @default(uuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  customerId     String
+  customer       Customer @relation(fields: [customerId], references: [id])
+  professionalId String
+  professional   Professional @relation(fields: [professionalId], references: [id])
+  serviceId      String
+  service        Service   @relation(fields: [serviceId], references: [id])
+  date           DateTime
+  status         String   // scheduled, done, cancelled
+  value          Float
+  cost           Float?
+  createdAt      DateTime @default(now())
+  transaction    FinancialTransaction?
+}
+
+model FinancialTransaction {
+  id             String   @id @default(uuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  appointmentId  String?
+  appointment    Appointment? @relation(fields: [appointmentId], references: [id])
+  type           String   // income, cost, transfer
+  value          Float
+  description    String?
+  createdAt      DateTime @default(now())
+  costId         String?
+  cost           Cost?    @relation(fields: [costId], references: [id])
+}
+
+model Subscription {
+  id         String   @id @default(uuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  plan       String
+  price      Float
+  status     String   // active, cancelled
+  startedAt  DateTime
+  endedAt    DateTime?
+}
+
+model Cost {
+  id         String   @id @default(uuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  name       String
+  value      Float
+  type       String   // fixed, variable
+  dueDate    DateTime?
+  paid       Boolean  @default(false)
+  transaction FinancialTransaction?
+}
+
+model Insight {
+  id         String   @id @default(uuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  name       String
+  category   String
+  description String
+  status     String   // active, resolved, ignored
+  createdAt  DateTime @default(now())
+  resolvedAt DateTime?
+  data       Json?
+}
+
+model Forecast {
+  id         String   @id @default(uuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  period     String   // 30d, 60d, 90d
+  value      Float
+  createdAt  DateTime @default(now())
+  data       Json?
+}
+
+// Índices estratégicos
+index([tenantId, createdAt], name: "byTenantAndDate")

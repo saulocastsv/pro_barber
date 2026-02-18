@@ -213,183 +213,90 @@ export default function Page() {
     return <AuthScreen onLogin={handleLogin} onGuestContinue={() => { setIsGuest(true); setCurrentView('booking'); }} />;
   }
 
-  const renderContent = () => {
-    const role = currentUser?.role || UserRole.CUSTOMER;
-
-    switch (currentView) {
-      case 'dashboard':
-        if (role === UserRole.OWNER) return <Dashboard stats={MOCK_STATS} onNavigate={setCurrentView} />;
-        if (role === UserRole.BARBER) return (
-          <BarberDashboard
-            currentUser={currentUser!}
-            appointments={appointments}
-            commissionRate={shopSettings.defaultCommissionRate || 50}
-            onCompleteAppointment={(id) => {
-              if (isSupabaseConfigured()) db.updateAppointmentStatus(id, 'COMPLETED');
-              setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: 'COMPLETED' } : a));
-            }}
-            onNoShow={(id) => {
-              if (isSupabaseConfigured()) db.updateAppointmentStatus(id, 'CANCELLED');
-              setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: 'CANCELLED' } : a));
-            }}
-            services={services}
-            exceptions={[]}
-            onBlockTime={() => {}}
-          />
-        );
-        return <CustomerDashboard currentUser={currentUser!} appointments={appointments} onNavigate={setCurrentView} membershipPlans={membershipPlans} />;
-
-      case 'calendar':
-        return <CalendarView appointments={appointments} barbers={barbers} services={services} onAddAppointment={handleAddAppointment} />;
-
-      case 'queue':
-        return <QueueSystem initialQueue={MOCK_QUEUE} services={services} />;
-
-      case 'booking':
-        return <BookingFlow currentUser={currentUser} initialData={null} services={services} onBook={handleAddAppointment} shopSettings={shopSettings} allAppointments={appointments} availabilityExceptions={[]} />;
-
-      case 'appointments':
-        return (
-          <CustomerAppointments
-            currentUser={currentUser!}
-            appointments={appointments.filter(a => a.customerId === currentUser?.id)}
-            onRebook={(appt) => {
-              setCurrentView('booking');
-            }}
-            onCancel={(id) => {
-              if (isSupabaseConfigured()) db.updateAppointmentStatus(id, 'CANCELLED');
-              setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: 'CANCELLED' } : a));
-            }}
-            onNavigate={setCurrentView}
-            services={services}
-          />
-        );
-
-      case 'shop':
-        return (
-          <Shop
-            currentUser={currentUser!}
-            inventory={inventory}
-            onPurchase={async (cartItems, totalPaid, _pointsUsed, _pointsDiscount) => {
-              try {
-                // Decrementar inventário
-                cartItems.forEach(cartItem => {
-                  if (cartItem.id.startsWith('inv_')) {
-                    const inventoryItemId = cartItem.id.replace('inv_', '');
-                    const inventoryItem = inventory.find(i => i.id === inventoryItemId);
-                    if (inventoryItem && inventoryItem.quantity >= cartItem.quantity) {
-                      setInventory(prev => prev.map(item => 
-                        item.id === inventoryItemId 
-                          ? { ...item, quantity: item.quantity - cartItem.quantity }
-                          : item
-                      ));
-                    }
-                  }
-                });
-
-                if (isSupabaseConfigured() && currentUser) {
-                  const shopId = currentUser.role === UserRole.OWNER
-                    ? (await db.getBarbershopByOwner(currentUser.id))?.id
-                    : currentUser.barbershopId;
-                  await db.createOrder({
-                    customerId: currentUser.id,
-                    items: cartItems,
-                    totalAmount: totalPaid,
-                    barbershop_id: shopId,
-                    status: 'PAID'
-                  });
-                  await syncAppData(currentUser);
-                }
-                return true;
-              } catch {
-                setGlobalError("Erro ao processar compra.");
-                return false;
-              }
-            }}
-          />
-        );
-
-      case 'orders':
-        return (
-          <CustomerOrders
-            orders={orders.filter(o => o.customerId === currentUser?.id)}
-            onNavigate={setCurrentView}
-            onRepeatOrder={(order) => {
-              setCurrentView('shop');
-            }}
-          />
-        );
-
-      case 'inventory':
-        return <Inventory items={inventory} onUpdateItem={async (item, action) => {
-          if (action === 'UPSERT') {
-            if (isSupabaseConfigured() && currentUser) {
-              const shopId = currentUser.role === UserRole.OWNER
-                ? (await db.getBarbershopByOwner(currentUser.id))?.id
-                : currentUser.barbershopId;
-              await db.upsertInventoryItem({ ...item, barbershop_id: shopId });
-              await syncAppData(currentUser);
-            } else {
-              setInventory(prev => {
-                const idx = prev.findIndex(i => i.id === item.id);
-                if (idx >= 0) { const u = [...prev]; u[idx] = item; return u; }
-                return [...prev, item];
-              });
-            }
-          } else {
-            setInventory(prev => prev.filter(i => i.id !== item.id));
-          }
-        }} />;
-
-      case 'services':
-        return <ServicesManagement services={services} onUpdateServices={setServices} />;
-
-      case 'order_management':
-        return <OrderManagement orders={orders} users={users} onNavigate={setCurrentView} onUpdateStatus={async (id, status, track) => {
-          if (isSupabaseConfigured()) {
-            await db.updateOrderStatus(id, status, track);
-            if (currentUser) await syncAppData(currentUser);
-          } else {
-            setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
-          }
-        }} />;
-
-      case 'financials':
-        return <Financials transactions={MOCK_TRANSACTIONS} />;
-
-      case 'team':
-        return <Team barbers={barbers} setUsers={setUsers} />;
-
-      case 'crm':
-        return (
-          <CustomerCRM
-            services={services}
-            notes={notes}
-            onSaveNote={handleSaveNote}
-            customers={customers}
-            appointments={appointments}
-            onScheduleReturn={(customerId) => {
-              setCurrentView('calendar');
-            }}
-          />
-        );
-
-      case 'marketing':
-        return <MarketingTools automations={automations} setAutomations={setAutomations} />;
-
-      case 'strategic':
-        return <StrategicGrowth services={services} plans={membershipPlans} setPlans={setMembershipPlans} currentUser={currentUser || undefined} />;
-
-      case 'investor':
-        return <InvestorDashboard appointments={appointments} membershipPlans={membershipPlans} services={services} users={users} />;
-
-      case 'settings':
-        return <Settings currentUser={currentUser!} settings={shopSettings} onUpdateSettings={setShopSettings} onUpdateUser={setCurrentUser} />;
-
-      default:
-        return <Dashboard stats={MOCK_STATS} onNavigate={setCurrentView} />;
-    }
+  // Controle de acesso por role
+  const role = currentUser?.role || UserRole.CUSTOMER;
+  const allowedViews: Record<string, UserRole[]> = {
+    dashboard: [UserRole.OWNER, UserRole.BARBER, UserRole.CUSTOMER],
+    calendar: [UserRole.OWNER],
+    queue: [UserRole.OWNER, UserRole.BARBER],
+    services: [UserRole.OWNER],
+    strategic: [UserRole.OWNER],
+    investor: [UserRole.OWNER],
+    booking: [UserRole.CUSTOMER],
+    appointments: [UserRole.CUSTOMER],
+    shop: [UserRole.CUSTOMER],
+    orders: [UserRole.CUSTOMER],
+    order_management: [UserRole.OWNER],
+    financials: [UserRole.OWNER],
+    team: [UserRole.OWNER],
+    inventory: [UserRole.OWNER],
+    crm: [UserRole.OWNER, UserRole.BARBER],
+    marketing: [UserRole.OWNER],
+    settings: [UserRole.OWNER, UserRole.BARBER, UserRole.CUSTOMER],
   };
+
+  // Se a view não for permitida para o role, redireciona para dashboard
+  if (!allowedViews[currentView]?.includes(role)) {
+    if (role === UserRole.OWNER) return <Dashboard stats={MOCK_STATS} onNavigate={setCurrentView} />;
+    if (role === UserRole.BARBER) return <BarberDashboard currentUser={currentUser!} appointments={appointments} commissionRate={shopSettings.defaultCommissionRate || 50} onCompleteAppointment={(id) => { if (isSupabaseConfigured()) db.updateAppointmentStatus(id, 'COMPLETED'); setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: 'COMPLETED' } : a)); }} onNoShow={(id) => { if (isSupabaseConfigured()) db.updateAppointmentStatus(id, 'CANCELLED'); setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: 'CANCELLED' } : a)); }} services={services} exceptions={[]} onBlockTime={() => {}} />;
+    return <CustomerDashboard currentUser={currentUser!} appointments={appointments} onNavigate={setCurrentView} membershipPlans={membershipPlans} />;
+  }
+
+  // Dashboards e menus exclusivos
+  switch (currentView) {
+    case 'dashboard':
+      if (role === UserRole.OWNER) return (
+        <RoleExperience user={currentUser!}>
+          <Dashboard stats={MOCK_STATS} onNavigate={setCurrentView} />
+        </RoleExperience>
+      );
+      if (role === UserRole.BARBER) return (
+        <RoleExperience user={currentUser!}>
+          <BarberDashboard currentUser={currentUser!} appointments={appointments} commissionRate={shopSettings.defaultCommissionRate || 50} onCompleteAppointment={(id) => { if (isSupabaseConfigured()) db.updateAppointmentStatus(id, 'COMPLETED'); setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: 'COMPLETED' } : a)); }} onNoShow={(id) => { if (isSupabaseConfigured()) db.updateAppointmentStatus(id, 'CANCELLED'); setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: 'CANCELLED' } : a)); }} services={services} exceptions={[]} onBlockTime={() => {}} />
+        </RoleExperience>
+      );
+      return (
+        <RoleExperience user={currentUser!}>
+          <CustomerDashboard currentUser={currentUser!} appointments={appointments} onNavigate={setCurrentView} membershipPlans={membershipPlans} />
+        </RoleExperience>
+      );
+    case 'calendar':
+      return <CalendarView appointments={appointments} barbers={barbers} services={services} onAddAppointment={handleAddAppointment} />;
+    case 'queue':
+      return <QueueSystem initialQueue={MOCK_QUEUE} services={services} />;
+    case 'booking':
+      return <BookingFlow currentUser={currentUser} initialData={null} services={services} onBook={handleAddAppointment} shopSettings={shopSettings} allAppointments={appointments} availabilityExceptions={[]} />;
+    case 'appointments':
+      return <CustomerAppointments currentUser={currentUser!} appointments={appointments.filter(a => a.customerId === currentUser?.id)} onRebook={(appt) => { setCurrentView('booking'); }} onCancel={(id) => { if (isSupabaseConfigured()) db.updateAppointmentStatus(id, 'CANCELLED'); setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: 'CANCELLED' } : a)); }} onNavigate={setCurrentView} services={services} />;
+    case 'shop':
+      return <Shop currentUser={currentUser!} inventory={inventory} onPurchase={async (cartItems, totalPaid, _pointsUsed, _pointsDiscount) => { try { cartItems.forEach(cartItem => { if (cartItem.id.startsWith('inv_')) { const inventoryItemId = cartItem.id.replace('inv_', ''); const inventoryItem = inventory.find(i => i.id === inventoryItemId); if (inventoryItem && inventoryItem.quantity >= cartItem.quantity) { setInventory(prev => prev.map(item => item.id === inventoryItemId ? { ...item, quantity: item.quantity - cartItem.quantity } : item)); } } }); if (isSupabaseConfigured() && currentUser) { const shopId = currentUser.role === UserRole.OWNER ? (await db.getBarbershopByOwner(currentUser.id))?.id : currentUser.barbershopId; await db.createOrder({ customerId: currentUser.id, items: cartItems, totalAmount: totalPaid, barbershop_id: shopId, status: 'PAID' }); await syncAppData(currentUser); } return true; } catch { setGlobalError("Erro ao processar compra."); return false; } }} />;
+    case 'orders':
+      return <CustomerOrders orders={orders.filter(o => o.customerId === currentUser?.id)} onNavigate={setCurrentView} onRepeatOrder={(order) => { setCurrentView('shop'); }} />;
+    case 'inventory':
+      return <Inventory items={inventory} onUpdateItem={async (item, action) => { if (action === 'UPSERT') { if (isSupabaseConfigured() && currentUser) { const shopId = currentUser.role === UserRole.OWNER ? (await db.getBarbershopByOwner(currentUser.id))?.id : currentUser.barbershopId; await db.upsertInventoryItem({ ...item, barbershop_id: shopId }); await syncAppData(currentUser); } else { setInventory(prev => { const idx = prev.findIndex(i => i.id === item.id); if (idx >= 0) { const u = [...prev]; u[idx] = item; return u; } return [...prev, item]; }); } } else { setInventory(prev => prev.filter(i => i.id !== item.id)); } }} />;
+    case 'services':
+      return <ServicesManagement services={services} onUpdateServices={setServices} />;
+    case 'order_management':
+      return <OrderManagement orders={orders} users={users} onNavigate={setCurrentView} onUpdateStatus={async (id, status, track) => { if (isSupabaseConfigured()) { await db.updateOrderStatus(id, status, track); if (currentUser) await syncAppData(currentUser); } else { setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o)); } }} />;
+    case 'financials':
+      return <Financials transactions={MOCK_TRANSACTIONS} />;
+    case 'team':
+      return <Team barbers={barbers} setUsers={setUsers} />;
+    case 'crm':
+      return <CustomerCRM services={services} notes={notes} onSaveNote={handleSaveNote} customers={customers} appointments={appointments} onScheduleReturn={(customerId) => { setCurrentView('calendar'); }} />;
+    case 'marketing':
+      return <MarketingTools automations={automations} setAutomations={setAutomations} />;
+    case 'strategic':
+      return <StrategicGrowth services={services} plans={membershipPlans} setPlans={setMembershipPlans} currentUser={currentUser || undefined} />;
+    case 'investor':
+      return <InvestorDashboard appointments={appointments} membershipPlans={membershipPlans} services={services} users={users} />;
+    case 'settings':
+      return <Settings currentUser={currentUser!} settings={shopSettings} onUpdateSettings={setShopSettings} onUpdateUser={setCurrentUser} />;
+    default:
+      if (role === UserRole.OWNER) return <Dashboard stats={MOCK_STATS} onNavigate={setCurrentView} />;
+      if (role === UserRole.BARBER) return <BarberDashboard currentUser={currentUser!} appointments={appointments} commissionRate={shopSettings.defaultCommissionRate || 50} onCompleteAppointment={(id) => { if (isSupabaseConfigured()) db.updateAppointmentStatus(id, 'COMPLETED'); setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: 'COMPLETED' } : a)); }} onNoShow={(id) => { if (isSupabaseConfigured()) db.updateAppointmentStatus(id, 'CANCELLED'); setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: 'CANCELLED' } : a)); }} services={services} exceptions={[]} onBlockTime={() => {}} />;
+      return <CustomerDashboard currentUser={currentUser!} appointments={appointments} onNavigate={setCurrentView} membershipPlans={membershipPlans} />;
+  }
 
   return (
     <Layout
